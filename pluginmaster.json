@@ -6,14 +6,14 @@
     "Description": "Analyzes market opportunities with Universalis data, watchlists, velocity filters, and manual undercut helpers. All actions are manual.",
     "Changelog": "",
     "InternalName": "UndercutterFFXIV",
-    "AssemblyVersion": "1.1.14.0",
-    "TestingAssemblyVersion": "1.1.14.0",
+    "AssemblyVersion": "1.1.15.0",
+    "TestingAssemblyVersion": "1.1.15.0",
     "IsHide": false,
     "IsTestingExclusive": false,
     "RepoUrl": "https://github.com/Aschmies/UndercutterFFXIV",
-    "DownloadLinkInstall": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.14/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.14/latest.zip",
-    "DownloadLinkTesting": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.14/latest.zip",
+    "DownloadLinkInstall": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.15/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.15/latest.zip",
+    "DownloadLinkTesting": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.15/latest.zip",
     "DalamudApiLevel": 15,
     "ApplicableVersion": "any",
     "Tags": [
@@ -23,7 +23,7 @@
       "gil",
       "universalis"
     ],
-    "LastUpdated": 1778269096,
+    "LastUpdated": 1778270125,
     "DownloadCount": 0
   }
 ]
