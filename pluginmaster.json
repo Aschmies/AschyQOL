@@ -1,4 +1,4 @@
-[{
+﻿[{
   "Author": "Market Assistant Dev",
   "Name": "Market Master Pro",
   "Punchline": "Manual market intelligence and arbitrage scanner for FFXIV.",
@@ -11,9 +11,9 @@
   "IsTestingExclusive": false,
   "RepoUrl": "https://github.com/Aschmies/UndercutterFFXIV",
   "IconUrl": "https://raw.githubusercontent.com/Aschmies/UndercutterFFXIV/main/assets/icon-market-master-pro.png",
-  "DownloadLinkInstall": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.36/UndercutterFFXIV-v1.1.36.zip",
-  "DownloadLinkUpdate": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.36/UndercutterFFXIV-v1.1.36.zip",
-  "DownloadLinkTesting": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.36/UndercutterFFXIV-v1.1.36.zip",
+  "DownloadLinkInstall": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.36/latest.zip",
+  "DownloadLinkUpdate": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.36/latest.zip",
+  "DownloadLinkTesting": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.36/latest.zip",
   "DalamudApiLevel": 15,
   "ApplicableVersion": "any",
   "LoadRequiredState": 0,
@@ -29,7 +29,7 @@
     "gil",
     "universalis"
   ],
-  "LastUpdated": 1778305798,
+  "LastUpdated": 1778305872,
   "DownloadCount": 0
 }]
 
