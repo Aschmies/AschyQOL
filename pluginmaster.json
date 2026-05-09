@@ -5,15 +5,15 @@
   "Description": "Analyzes market opportunities with Universalis data, watchlists, velocity filters, and manual undercut helpers. All actions are manual. Now includes real-time undercut notifications.",
   "Changelog": "v1.1.36: Installer reliability hotfix - release asset now uses a versioned filename to avoid stale CDN cache and ensure distributed package version matches feed version.\nv1.1.35: Reissued release package on a fresh tag to bypass stale CDN artifact and restore install/update reliability for latest opportunities persistence update.\nv1.1.34: Scanner now persists the most recent opportunities and keeps them visible until a new scan completes; latest opportunity snapshot is restored on startup.\nv1.1.33: Stability pass: opportunities table now supports row caps, compact mode, and optional detailed tooltips; exclusion inspector now uses TTL caching with refresh debounce; added pluginmaster feed validation script for safer releases.",
   "InternalName": "UndercutterFFXIV",
-  "AssemblyVersion": "1.1.40.0",
-  "TestingAssemblyVersion": "1.1.40.0",
+  "AssemblyVersion": "1.1.41.0",
+  "TestingAssemblyVersion": "1.1.41.0",
   "IsHide": false,
   "IsTestingExclusive": false,
   "RepoUrl": "https://github.com/Aschmies/UndercutterFFXIV",
   "IconUrl": "https://raw.githubusercontent.com/Aschmies/UndercutterFFXIV/main/assets/icon-market-master-pro.png",
-  "DownloadLinkInstall": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.40/UndercutterFFXIV-v1.1.40.zip",
-  "DownloadLinkUpdate": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.40/UndercutterFFXIV-v1.1.40.zip",
-  "DownloadLinkTesting": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.40/UndercutterFFXIV-v1.1.40.zip",
+  "DownloadLinkInstall": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.41/UndercutterFFXIV-v1.1.41.zip",
+  "DownloadLinkUpdate": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.41/UndercutterFFXIV-v1.1.41.zip",
+  "DownloadLinkTesting": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.41/UndercutterFFXIV-v1.1.41.zip",
   "DalamudApiLevel": 15,
   "ApplicableVersion": "any",
   "LoadRequiredState": 0,
@@ -29,7 +29,7 @@
     "gil",
     "universalis"
   ],
-  "LastUpdated": 1778311520,
+  "LastUpdated": 1778323675,
   "DownloadCount": 0
 }]
 
