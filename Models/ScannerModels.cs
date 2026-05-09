@@ -125,4 +125,15 @@ namespace UndercutterFFXIV.Models
         public long TotalMs { get; init; }
         public int CandidateCount { get; init; }
     }
+
+    public sealed class TradeHistoryEntry
+    {
+        public long Id { get; init; }
+        public uint ItemId { get; init; }
+        public string ItemName { get; init; } = string.Empty;
+        public uint BuyPrice { get; init; }
+        public uint SellPrice { get; init; }
+        public uint Quantity { get; init; }
+        public DateTime TradedUtc { get; init; }
+    }
 }

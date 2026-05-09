@@ -4,17 +4,17 @@
     "Name": "Market Master Pro",
     "Punchline": "Manual market intelligence and arbitrage scanner for FFXIV.",
     "Description": "Analyzes market opportunities with Universalis data, watchlists, velocity filters, and manual undercut helpers. All actions are manual. Now includes real-time undercut notifications.",
-      "Changelog": "v1.1.27: Added dynamic content-aware table autosizing for Search Results, Watchlist, and Opportunities item columns. Fixed scanner progress reporting to update consistently through batch fetch/filter/eval phases. Improved undercut chat alerts with stronger highlighted formatting.",
+      "Changelog": "v1.1.28: Added Buy/Sell History tab with persistent storage and manual entry. Track your market transactions directly in the plugin.\nv1.1.27: Added dynamic content-aware table autosizing for Search Results, Watchlist, and Opportunities item columns. Fixed scanner progress reporting to update consistently through batch fetch/filter/eval phases. Improved undercut chat alerts with stronger highlighted formatting.",
     "InternalName": "UndercutterFFXIV",
-      "AssemblyVersion": "1.1.27.0",
-      "TestingAssemblyVersion": "1.1.27.0",
+      "AssemblyVersion": "1.1.28.0",
+      "TestingAssemblyVersion": "1.1.28.0",
     "IsHide": false,
     "IsTestingExclusive": false,
     "RepoUrl": "https://github.com/Aschmies/UndercutterFFXIV",
     "IconUrl": "https://raw.githubusercontent.com/Aschmies/UndercutterFFXIV/main/assets/icon-market-master-pro.png",
-      "DownloadLinkInstall": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.27/latest.zip",
-      "DownloadLinkUpdate": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.27/latest.zip",
-      "DownloadLinkTesting": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.27/latest.zip",
+      "DownloadLinkInstall": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.28/latest.zip",
+      "DownloadLinkUpdate": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.28/latest.zip",
+      "DownloadLinkTesting": "https://github.com/Aschmies/UndercutterFFXIV/releases/download/v1.1.28/latest.zip",
     "DalamudApiLevel": 15,
     "ApplicableVersion": "any",
     "Tags": [
@@ -24,7 +24,7 @@
       "gil",
       "universalis"
     ],
-    "LastUpdated": 1778296135,
+  "LastUpdated": 1778372460,
     "DownloadCount": 0
   }
 ]

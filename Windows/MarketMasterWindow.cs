@@ -15,7 +15,7 @@ namespace UndercutterFFXIV.Windows
     {
         private const int InventoryLookupConcurrency = 6;
 
-        private enum MainTab { Dashboard, Scanner, Inventory, Settings }
+        private enum MainTab { Dashboard, Scanner, Inventory, History, Settings }
 
         private readonly MarketAssistantPlugin plugin;
         private readonly ProfitScannerService scanner;
@@ -44,6 +44,13 @@ namespace UndercutterFFXIV.Windows
         private DateTime lastSettingsSaveUtc = DateTime.MinValue;
         private bool pendingSettingsSave;
         private string inventoryStatus = string.Empty;
+        private string historyStatus = string.Empty;
+        private int historyDaysFilter = 30;
+        private int historyItemIdInput;
+        private string historyItemNameInput = string.Empty;
+        private int historyBuyPriceInput;
+        private int historySellPriceInput;
+        private int historyQuantityInput = 1;
 
         private sealed class InventoryGridRow
         {
@@ -57,6 +64,13 @@ namespace UndercutterFFXIV.Windows
 
         private enum SortDirection { Ascending, Descending }
         private SortDirection opportunitySortDirection = SortDirection.Descending;
+
+        private static string BuildWindowTitle()
+        {
+            var version = typeof(MarketMasterWindow).Assembly.GetName().Version;
+            var versionText = version != null ? version.ToString(3) : "dev";
+            return $"Market Master Pro v{versionText}###MarketMasterProWindow";
+        }
 
         private static float CalculateColumnWidth(
             IEnumerable<string> values,
@@ -83,7 +97,7 @@ namespace UndercutterFFXIV.Windows
         }
 
         public MarketMasterWindow(MarketAssistantPlugin plugin, ProfitScannerService scanner)
-            : base("Market Master Pro###MarketMasterProWindow")
+            : base(BuildWindowTitle())
         {
             this.plugin = plugin;
             this.scanner = scanner;
@@ -119,6 +133,7 @@ namespace UndercutterFFXIV.Windows
             DrawTabButton(MainTab.Dashboard, "Dashboard");
             DrawTabButton(MainTab.Scanner, "Scanner");
             DrawTabButton(MainTab.Inventory, "Inventory");
+            DrawTabButton(MainTab.History, "History");
             DrawTabButton(MainTab.Settings, "Settings");
             ImGui.EndChild();
 
@@ -133,6 +148,7 @@ namespace UndercutterFFXIV.Windows
                     case MainTab.Dashboard:  DrawDashboardTab();  break;
                     case MainTab.Scanner:    DrawScannerTab();    break;
                     case MainTab.Inventory:  DrawInventoryTab();  break;
+                    case MainTab.History:    DrawHistoryTab();    break;
                     case MainTab.Settings:   DrawSettingsTab();   break;
                 }
             }
@@ -350,7 +366,7 @@ namespace UndercutterFFXIV.Windows
             ImGui.Text("Search Results");
             ImGui.Separator();
             if (ImGui.BeginTable("##searchTable", 4,
-                ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.ScrollX | ImGuiTableFlags.Resizable | ImGuiTableFlags.SizingFixedFit,
+                ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.ScrollX | ImGuiTableFlags.Resizable | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.NoSavedSettings,
                 new Vector2(0, 260)))
             {
                 ImGui.TableSetupColumn("Name",   ImGuiTableColumnFlags.WidthFixed, searchNameWidth);
@@ -378,7 +394,7 @@ namespace UndercutterFFXIV.Windows
             ImGui.Text("Watchlist");
             ImGui.Separator();
             if (ImGui.BeginTable("##watchTable", 2,
-                ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.ScrollX | ImGuiTableFlags.Resizable | ImGuiTableFlags.SizingFixedFit,
+                ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.ScrollX | ImGuiTableFlags.Resizable | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.NoSavedSettings,
                 new Vector2(0, 220)))
             {
                 ImGui.TableSetupColumn("Name",   ImGuiTableColumnFlags.WidthFixed, watchNameWidth);
@@ -530,6 +546,121 @@ namespace UndercutterFFXIV.Windows
                 ImGui.SetTooltip("Copy always works. Auto-fill is optional and only activates when the in-game sell window is detected.");
             if (config.EnableRetainerAutoFill && !retainerWindowDetected)
                 ImGui.TextDisabled("Open the Retainer sell price window to enable auto-fill.");
+        }
+
+        private void DrawHistoryTab()
+        {
+            ImGui.Text("Buy/Sell History");
+            ImGui.TextDisabled("Track what you bought and sold items for over time.");
+            ImGui.Spacing();
+
+            ImGui.SetNextItemWidth(120);
+            if (ImGui.InputInt("Days", ref historyDaysFilter))
+                historyDaysFilter = Math.Clamp(historyDaysFilter, 1, 365);
+
+            ImGui.SameLine();
+            ImGui.TextDisabled(historyStatus);
+
+            ImGui.Separator();
+            ImGui.Text("Add Trade Entry");
+
+            ImGui.SetNextItemWidth(120);
+            ImGui.InputInt("Item ID", ref historyItemIdInput);
+            if (historyItemIdInput < 0)
+                historyItemIdInput = 0;
+
+            ImGui.SetNextItemWidth(300);
+            ImGui.InputText("Item Name", ref historyItemNameInput, 128);
+
+            ImGui.SetNextItemWidth(140);
+            ImGui.InputInt("Buy Price", ref historyBuyPriceInput);
+            if (historyBuyPriceInput < 0)
+                historyBuyPriceInput = 0;
+
+            ImGui.SetNextItemWidth(140);
+            ImGui.InputInt("Sell Price", ref historySellPriceInput);
+            if (historySellPriceInput < 0)
+                historySellPriceInput = 0;
+
+            ImGui.SetNextItemWidth(120);
+            ImGui.InputInt("Quantity", ref historyQuantityInput);
+            if (historyQuantityInput < 1)
+                historyQuantityInput = 1;
+
+            var canAdd = !string.IsNullOrWhiteSpace(historyItemNameInput)
+                && historyBuyPriceInput > 0
+                && historySellPriceInput > 0
+                && historyQuantityInput > 0;
+
+            ImGui.BeginDisabled(!canAdd);
+            if (ImGui.Button("Add History Entry"))
+            {
+                scanner.AddTradeHistoryEntry(
+                    (uint)Math.Max(0, historyItemIdInput),
+                    historyItemNameInput.Trim(),
+                    (uint)historyBuyPriceInput,
+                    (uint)historySellPriceInput,
+                    (uint)historyQuantityInput);
+
+                historyStatus = $"Added history entry for {historyItemNameInput.Trim()}";
+                historyItemIdInput = 0;
+                historyItemNameInput = string.Empty;
+                historyBuyPriceInput = 0;
+                historySellPriceInput = 0;
+                historyQuantityInput = 1;
+            }
+            ImGui.EndDisabled();
+
+            ImGui.Spacing();
+            ImGui.Separator();
+
+            var entries = scanner.GetTradeHistory(historyDaysFilter).ToList();
+            if (entries.Count == 0)
+            {
+                ImGui.TextDisabled("No buy/sell history recorded for the selected period yet.");
+                return;
+            }
+
+            ImGui.Text($"Entries: {entries.Count}");
+
+            if (!ImGui.BeginTable("##tradeHistoryTable", 8,
+                ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.ScrollX,
+                new Vector2(0, 0)))
+                return;
+
+            ImGui.TableSetupColumn("Time", ImGuiTableColumnFlags.WidthFixed, 95);
+            ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch);
+            ImGui.TableSetupColumn("ID", ImGuiTableColumnFlags.WidthFixed, 70);
+            ImGui.TableSetupColumn("Buy", ImGuiTableColumnFlags.WidthFixed, 90);
+            ImGui.TableSetupColumn("Sell", ImGuiTableColumnFlags.WidthFixed, 90);
+            ImGui.TableSetupColumn("Qty", ImGuiTableColumnFlags.WidthFixed, 55);
+            ImGui.TableSetupColumn("Net/Unit", ImGuiTableColumnFlags.WidthFixed, 90);
+            ImGui.TableSetupColumn("Net Total", ImGuiTableColumnFlags.WidthFixed, 95);
+            ImGui.TableHeadersRow();
+
+            var taxMultiplier = 1.0 - (config.MarketTaxRatePercent / 100.0);
+
+            foreach (var entry in entries)
+            {
+                var netSellPerUnit = entry.SellPrice * taxMultiplier;
+                var netPerUnit = netSellPerUnit - entry.BuyPrice;
+                var netTotal = netPerUnit * entry.Quantity;
+                var netColor = netTotal >= 0
+                    ? new Vector4(0.4f, 1f, 0.4f, 1f)
+                    : new Vector4(1f, 0.45f, 0.45f, 1f);
+
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn(); ImGui.Text(entry.TradedUtc.ToLocalTime().ToString("MM/dd HH:mm"));
+                ImGui.TableNextColumn(); ImGui.TextUnformatted(entry.ItemName);
+                ImGui.TableNextColumn(); ImGui.Text(entry.ItemId > 0 ? entry.ItemId.ToString() : "-");
+                ImGui.TableNextColumn(); ImGui.Text(entry.BuyPrice.ToString("N0"));
+                ImGui.TableNextColumn(); ImGui.Text(entry.SellPrice.ToString("N0"));
+                ImGui.TableNextColumn(); ImGui.Text(entry.Quantity.ToString("N0"));
+                ImGui.TableNextColumn(); ImGui.TextColored(netColor, netPerUnit.ToString("N0"));
+                ImGui.TableNextColumn(); ImGui.TextColored(netColor, netTotal.ToString("N0"));
+            }
+
+            ImGui.EndTable();
         }
 
         private async Task RefreshInventoryGridAsync()
@@ -851,7 +982,7 @@ namespace UndercutterFFXIV.Windows
                 80);
 
             if (!ImGui.BeginTable(tableId, 10,
-                ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Resizable | ImGuiTableFlags.ScrollX | ImGuiTableFlags.SizingFixedFit,
+                ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Resizable | ImGuiTableFlags.ScrollX | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.NoSavedSettings,
                 new Vector2(0, 0)))
                 return;
 
