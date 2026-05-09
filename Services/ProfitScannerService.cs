@@ -117,6 +117,22 @@ namespace UndercutterFFXIV.Services
         public IReadOnlyList<(DateTime DateUtc, double TotalNetProfit)> GetProfitSeries(int days) =>
             database.GetDailyProfitSeries(days);
 
+        public IReadOnlyList<TradeHistoryEntry> GetTradeHistory(int days = 30)
+            => database.GetTradeHistory(days);
+
+        public void AddTradeHistoryEntry(uint itemId, string itemName, uint buyPrice, uint sellPrice, uint quantity)
+        {
+            database.AddTradeHistoryEntry(new TradeHistoryEntry
+            {
+                ItemId = itemId,
+                ItemName = itemName,
+                BuyPrice = buyPrice,
+                SellPrice = sellPrice,
+                Quantity = quantity,
+                TradedUtc = DateTime.UtcNow
+            });
+        }
+
         public (bool IsRunning, int Processed, int Total, int Percent) GetScanProgress()
         {
             lock (cacheLock)

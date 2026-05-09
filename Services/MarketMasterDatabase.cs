@@ -176,6 +176,63 @@ ORDER BY day";
             }
         }
 
+        public void AddTradeHistoryEntry(TradeHistoryEntry entry)
+        {
+            lock (dbLock)
+            {
+                using var connection = new SqliteConnection(connectionString);
+                connection.Open();
+
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
+INSERT INTO trade_history(item_id, item_name, buy_price, sell_price, quantity, traded_utc)
+VALUES($itemId, $itemName, $buyPrice, $sellPrice, $quantity, $tradedUtc)";
+
+                cmd.Parameters.AddWithValue("$itemId", entry.ItemId);
+                cmd.Parameters.AddWithValue("$itemName", entry.ItemName);
+                cmd.Parameters.AddWithValue("$buyPrice", entry.BuyPrice);
+                cmd.Parameters.AddWithValue("$sellPrice", entry.SellPrice);
+                cmd.Parameters.AddWithValue("$quantity", entry.Quantity);
+                cmd.Parameters.AddWithValue("$tradedUtc", entry.TradedUtc.ToString("O"));
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        public IReadOnlyList<TradeHistoryEntry> GetTradeHistory(int days)
+        {
+            lock (dbLock)
+            {
+                using var connection = new SqliteConnection(connectionString);
+                connection.Open();
+
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
+SELECT id, item_id, item_name, buy_price, sell_price, quantity, traded_utc
+FROM trade_history
+WHERE traded_utc >= $cutoff
+ORDER BY traded_utc DESC";
+                cmd.Parameters.AddWithValue("$cutoff", DateTime.UtcNow.AddDays(-Math.Max(1, days)).ToString("O"));
+
+                using var reader = cmd.ExecuteReader();
+                var rows = new List<TradeHistoryEntry>();
+                while (reader.Read())
+                {
+                    rows.Add(new TradeHistoryEntry
+                    {
+                        Id = reader.GetInt64(0),
+                        ItemId = (uint)reader.GetInt64(1),
+                        ItemName = reader.GetString(2),
+                        BuyPrice = (uint)reader.GetInt64(3),
+                        SellPrice = (uint)reader.GetInt64(4),
+                        Quantity = (uint)reader.GetInt64(5),
+                        TradedUtc = DateTime.Parse(reader.GetString(6), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind)
+                    });
+                }
+
+                return rows;
+            }
+        }
+
         private void InitializeSchema()
         {
             lock (dbLock)
@@ -214,8 +271,19 @@ CREATE TABLE IF NOT EXISTS opportunities (
     FOREIGN KEY(run_id) REFERENCES scan_runs(id)
 );
 
+CREATE TABLE IF NOT EXISTS trade_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id INTEGER NOT NULL,
+    item_name TEXT NOT NULL,
+    buy_price INTEGER NOT NULL,
+    sell_price INTEGER NOT NULL,
+    quantity INTEGER NOT NULL,
+    traded_utc TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_opportunities_run ON opportunities(run_id);
-CREATE INDEX IF NOT EXISTS idx_opportunities_item ON opportunities(item_id);";
+CREATE INDEX IF NOT EXISTS idx_opportunities_item ON opportunities(item_id);
+CREATE INDEX IF NOT EXISTS idx_trade_history_time ON trade_history(traded_utc);";
 
                 cmd.ExecuteNonQuery();
             }
