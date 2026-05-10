@@ -1,5 +1,5 @@
 {
-  "Version": "1.0.6",
+  "Version": "1.0.7",
   "Author": "Market Assistant Dev",
   "Name": "BagAssistant",
   "Description": "Rule-based inventory sorter with comprehensive filters (category, rarity, level, ilvl, job, HQ, name, price).",
