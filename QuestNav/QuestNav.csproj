@@ -2,7 +2,7 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
 
   <PropertyGroup>
-    <Version>1.1.12</Version>
+    <Version>1.1.13</Version>
     <AssemblyName>QuestNav</AssemblyName>
     <RootNamespace>QuestNav</RootNamespace>
     <Authors>Market Assistant Dev</Authors>
