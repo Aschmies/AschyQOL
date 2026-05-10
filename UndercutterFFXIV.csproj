@@ -2,7 +2,7 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
 
   <PropertyGroup>
-    <Version>1.1.55</Version>
+    <Version>1.1.57</Version>
     <AssemblyName>UndercutterFFXIV</AssemblyName>
     <RootNamespace>UndercutterFFXIV</RootNamespace>
     <Authors>Aschy</Authors>

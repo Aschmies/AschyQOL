@@ -4,7 +4,7 @@
   "InternalName": "UndercutterFFXIV",
   "Punchline": "Manual market intelligence and arbitrage scanner",
   "Description": "Market Master Pro is a manual, intelligence-focused plugin for market analysis using Universalis data, with watchlists, scanner filters, and analytics.",
-  "Version": "1.1.55",
+  "Version": "1.1.57",
   "DalamudApiLevel": 15,
   "IsHide": false,
   "IsTestingExclusive": false,

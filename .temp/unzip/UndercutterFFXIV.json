@@ -1,0 +1,27 @@
+{
+  "Author": "Aschy",
+  "Name": "Market Master Pro",
+  "InternalName": "UndercutterFFXIV",
+  "AssemblyVersion": "1.1.55.0",
+  "Description": "Analyze market opportunities with Universalis data, watchlists, velocity filters, and manual undercut helpers. All actions are manual.",
+  "ApplicableVersion": "any",
+  "RepoUrl": "https://github.com/Aschmies/UndercutterFFXIV",
+  "Tags": [
+    "market",
+    "trading",
+    "economy",
+    "universalis"
+  ],
+  "CategoryTags": [
+    "General"
+  ],
+  "DalamudApiLevel": 15,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "LoadPriority": 0,
+  "IconUrl": "https://raw.githubusercontent.com/Aschmies/UndercutterFFXIV/main/assets/icon-market-master-pro.png",
+  "Punchline": "Manual market intelligence and arbitrage scanner for FFXIV.",
+  "Changelog": "v1.1.44: Removed queue system; Fill button now enabled whenever Adjust Price window is open (no longer requires pre-detection); -1 gil undercut logic unchanged.",
+  "AcceptsFeedback": true
+}
