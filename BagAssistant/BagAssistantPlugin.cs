@@ -288,8 +288,10 @@ public sealed class BagAssistantPlugin : IDalamudPlugin
             var mergeMoves = QuickSortPresets.BuildMergeStacks(items, bagFlags);
             if (mergeMoves.Count > 0)
             {
-                EnqueueWithIntraBagSort(mergeMoves, "Automated Apply Zones Merge", bagFlags);
-                // Chain the layout arrangement to run immediately after the merge finishes
+                SortQueue.Enqueue(
+                    mergeMoves.Select(m => (m.Item, m.DestBag, m.DestSlot, m.SrcSlotOverride)),
+                    "Apply Zones – Merge stacks");
+                // Chain the layout arrangement to run immediately after the merge finishes.
                 SortQueue.OnComplete = () =>
                 {
                     SortQueue.OnComplete = null;
@@ -299,8 +301,9 @@ public sealed class BagAssistantPlugin : IDalamudPlugin
             }
         }
 
-        var moves = QuickSortPresets.ApplyVisualZones(items, Configuration.VisualZoneLayout, bagFlags, Configuration);
-        EnqueueWithIntraBagSort(moves, "Apply Visual Zones", bagFlags);
+        // Full rebuild: categorize → sort → assign to painted slots → emit minimal swap moves.
+        var plan = QuickSortPresets.BuildApplyVisualZonesPlan(items, Configuration.VisualZoneLayout, bagFlags, Configuration);
+        SortQueue.EnqueueDirect(plan, "Apply Visual Zones (full rebuild)");
     }
 
     public void SyncLayoutToOtherBag(InventoryType sourceBag, InventoryType targetBag, List<uint?> template)

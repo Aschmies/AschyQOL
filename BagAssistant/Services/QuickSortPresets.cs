@@ -399,53 +399,172 @@ public static class QuickSortPresets
     }
 
     /// <summary>
-    /// Apply a saved layout template to another bag by moving items to match the template order.
+    /// Categorize an item into one of the layout-zone tags. The result matches the tags
+    /// painted in the Layout Zones tab: Gear / Materia / Consumables / Crafting / Gathering /
+    /// Crystals / Junk / Misc. Junk takes precedence over its underlying category so that
+    /// painted "Junk" zones receive the right items even when the item is also stackable.
     /// </summary>
-        public static List<QuickMove> ApplyVisualZones(IReadOnlyList<InventoryItemInfo> items, string[] layoutMap, bool[] bagFlags, Configuration config)
+    private static string CategorizeForZone(InventoryItemInfo i, Configuration config)
     {
-        var moves = new List<QuickMove>();
-        var itemsToMove = items.ToList();
+        if (IsJunk(i, config)) return "Junk";
+        if (i.IsEquippable) return "Gear";
+        if (i.UICategoryRowId == UICategoryMateria) return "Materia";
+        if (i.UICategoryRowId == UICategoryCrystal) return "Crystals";
+        if (i.UICategoryRowId == UICategoryMeal || i.UICategoryRowId == UICategoryMedicine) return "Consumables";
+        // Gathering categories: seafood/fish (47), gardening/seeds (48), and a few raw mats.
+        if (i.UICategoryRowId == 47 || i.UICategoryRowId == 48 || i.UICategoryRowId == 38 || i.UICategoryRowId == 39 || i.UICategoryRowId == 40)
+            return "Gathering";
+        if (i.IsStackable) return "Crafting";
+        return "Misc";
+    }
 
-        var slotsByTag = new Dictionary<string, List<(InventoryType Bag, int Slot)>>();
-        for (int i = 0; i < 140; i++)
+    private static IOrderedEnumerable<InventoryItemInfo> SortForCategory(string cat, IEnumerable<InventoryItemInfo> items) => cat switch
+    {
+        "Gear" => items.OrderByDescending(i => i.ItemLevel)
+                       .ThenByDescending(i => i.Rarity)
+                       .ThenByDescending(i => i.IsHQ)
+                       .ThenBy(i => i.Name),
+        "Materia" => items.OrderByDescending(i => i.ItemLevel).ThenBy(i => i.ItemId),
+        "Consumables" => items.OrderBy(i => i.ItemId).ThenByDescending(i => i.IsHQ),
+        "Crystals" => items.OrderBy(i => i.ItemId),
+        "Crafting" => items.OrderBy(i => i.ItemId),
+        "Gathering" => items.OrderBy(i => i.ItemId),
+        "Junk" => items.OrderBy(i => i.VendorPrice).ThenBy(i => i.ItemId),
+        _ => items.OrderBy(i => i.ItemId),
+    };
+
+    /// <summary>
+    /// Build a full-rebuild Apply-Zones plan. Treats the inventory as a blank canvas:
+    /// every item is categorised, sorted within its category, and assigned to the painted
+    /// layout slots in order. Overflow items (and items whose category has no zone) are
+    /// placed into any remaining "None"-tagged slots. Move operations are then computed
+    /// using a virtual-swap simulator so the live inventory is rewritten safely.
+    /// </summary>
+    public static List<QueuedMove> BuildApplyVisualZonesPlan(
+        IReadOnlyList<InventoryItemInfo> items,
+        string[] layoutMap,
+        bool[] bagFlags,
+        Configuration config)
+    {
+        // 1) Categorise every item and group.
+        var byCategory = new Dictionary<string, List<InventoryItemInfo>>();
+        foreach (var item in items)
         {
-            var tag = layoutMap[i];
-            if (string.IsNullOrEmpty(tag) || tag == "None") continue;
-            if (!slotsByTag.ContainsKey(tag)) slotsByTag[tag] = new();
-            var bagIndex = i / 35;
-            var slotIndex = i % 35;
-            if (bagIndex < bagFlags.Length && bagFlags[bagIndex])
+            var cat = CategorizeForZone(item, config);
+            if (!byCategory.TryGetValue(cat, out var list))
             {
-                slotsByTag[tag].Add((InventoryService.PlayerBags[bagIndex], slotIndex));
+                list = new List<InventoryItemInfo>();
+                byCategory[cat] = list;
+            }
+            list.Add(item);
+        }
+
+        // 2) Sort each category deterministically.
+        foreach (var key in byCategory.Keys.ToList())
+            byCategory[key] = SortForCategory(key, byCategory[key]).ToList();
+
+        // 3) Walk the layout in slot order to build per-tag slot lists + a free-slot list.
+        var zoneSlots = new Dictionary<string, List<(InventoryType bag, int slot)>>();
+        var freeSlots = new List<(InventoryType bag, int slot)>();
+        for (int g = 0; g < 140; g++)
+        {
+            int bagIdx = g / 35;
+            int slotIdx = g % 35;
+            if (bagIdx >= bagFlags.Length || !bagFlags[bagIdx]) continue;
+            var bag = InventoryService.PlayerBags[bagIdx];
+            var tag = (layoutMap != null && g < layoutMap.Length ? layoutMap[g] : null) ?? "None";
+            if (string.IsNullOrEmpty(tag) || tag == "None")
+            {
+                freeSlots.Add((bag, slotIdx));
+            }
+            else
+            {
+                if (!zoneSlots.TryGetValue(tag, out var list))
+                {
+                    list = new List<(InventoryType, int)>();
+                    zoneSlots[tag] = list;
+                }
+                list.Add((bag, slotIdx));
             }
         }
 
-        foreach (var kvp in slotsByTag)
+        // 4) Assign sorted items to their zone slots; overflow goes to free-slot pool.
+        var target = new Dictionary<(InventoryType bag, int slot), InventoryItemInfo>();
+        var overflow = new List<InventoryItemInfo>();
+        foreach (var (cat, list) in byCategory)
         {
-            var tag = kvp.Key;
-            var targetSlots = kvp.Value;
-            var matchedItems = itemsToMove.Where(i => tag switch
+            if (zoneSlots.TryGetValue(cat, out var slots))
             {
-                "Gear" => i.IsEquippable || i.Name.EndsWith("Arms") || i.Name.EndsWith("Coffer") || i.Name.EndsWith("Attire") || i.Name.EndsWith("Weapon") || i.Name.EndsWith("Equipment"),
-                "Materia" => i.UICategoryRowId == 58,
-                "Consumables" => i.UICategoryRowId == 44 || i.UICategoryRowId == 46,
-                "Crafting" => i.IsStackable && !IsJunk(i, config) && i.UICategoryRowId != 58 && i.UICategoryRowId != 59 && i.UICategoryRowId != 44 && i.UICategoryRowId != 46 && i.UICategoryRowId != 47 && i.UICategoryRowId != 48,
-                "Gathering" => i.IsStackable && !IsJunk(i, config) && (i.UICategoryRowId == 47 || i.UICategoryRowId == 48 || i.UICategoryRowId == 38 || i.UICategoryRowId == 39 || i.UICategoryRowId == 40),
-                "Crystals" => i.UICategoryRowId == 59,
-                "Junk" => IsJunk(i, config),
-                _ => false
-            }).ToList();
+                int n = Math.Min(list.Count, slots.Count);
+                for (int i = 0; i < n; i++) target[slots[i]] = list[i];
+                for (int i = n; i < list.Count; i++) overflow.Add(list[i]);
+            }
+            else
+            {
+                overflow.AddRange(list);
+            }
+        }
 
-            int moveCount = Math.Min(matchedItems.Count, targetSlots.Count);
-            for (int k = 0; k < moveCount; k++)
+        // 5) Spill overflow into the unzoned ("None") slots in slot-order.
+        int freeIdx = 0;
+        foreach (var item in overflow)
+        {
+            while (freeIdx < freeSlots.Count && target.ContainsKey(freeSlots[freeIdx])) freeIdx++;
+            if (freeIdx >= freeSlots.Count) break; // no remaining capacity – will be left in place
+            target[freeSlots[freeIdx]] = item;
+            freeIdx++;
+        }
+
+        // 6) Virtual swap simulator: walk target slots in deterministic order and emit moves.
+        var current = new Dictionary<(InventoryType bag, int slot), InventoryItemInfo>();
+        var locOf = new Dictionary<InventoryItemInfo, (InventoryType bag, int slot)>();
+        foreach (var item in items)
+        {
+            var k = (item.Container, item.Slot);
+            current[k] = item;
+            locOf[item] = k;
+        }
+
+        var moves = new List<QueuedMove>();
+        var orderedTargets = target.Keys
+            .OrderBy(k => Array.IndexOf(InventoryService.PlayerBags, k.bag))
+            .ThenBy(k => k.slot)
+            .ToList();
+
+        foreach (var key in orderedTargets)
+        {
+            var desired = target[key];
+            if (current.TryGetValue(key, out var here) && ReferenceEquals(here, desired)) continue;
+            if (!locOf.TryGetValue(desired, out var srcKey)) continue;
+
+            moves.Add(new QueuedMove(srcKey.bag, srcKey.slot, key.bag, key.slot, false, desired.Name));
+
+            // Apply the swap to our virtual model so later moves see the correct state.
+            current.TryGetValue(key, out var displaced);
+            current[key] = desired;
+            locOf[desired] = key;
+            if (displaced != null)
             {
-                moves.Add(new QuickMove { Item = matchedItems[k], DestBag = targetSlots[k].Bag, DestSlot = targetSlots[k].Slot });
-                itemsToMove.Remove(matchedItems[k]);
+                current[srcKey] = displaced;
+                locOf[displaced] = srcKey;
+            }
+            else
+            {
+                current.Remove(srcKey);
             }
         }
 
         return moves;
     }
+
+    /// <summary>
+    /// Legacy entry point kept so any external caller still compiles. Internally it now
+    /// delegates to the full-rebuild planner. The returned list is empty because the new
+    /// planner emits cross-bag <see cref="QueuedMove"/>s rather than QuickMoves; callers
+    /// should use <see cref="BuildApplyVisualZonesPlan"/> directly.
+    /// </summary>
+    public static List<QuickMove> ApplyVisualZones(IReadOnlyList<InventoryItemInfo> items, string[] layoutMap, bool[] bagFlags, Configuration config)
+        => new();
 
     public static List<QuickMove> ApplyLayoutTemplate(
         IReadOnlyList<InventoryItemInfo> items,
