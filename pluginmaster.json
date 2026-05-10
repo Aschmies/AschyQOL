@@ -1,4 +1,4 @@
-[
+ï»¿[
   {
     "Author": "Market Assistant Dev",
     "Name": "Market Master Pro",
@@ -38,7 +38,7 @@
     "Name": "Armoury Cleaner",
     "Punchline": "Filter and move unwanted gear out of your armoury chest.",
     "Description": "Define filters by job, minimum/maximum equip level, and item level. Armoury Cleaner scans each gear slot and moves only items that match all active filters into your inventory so you can discard them.",
-    "Changelog": "v1.0.9: New 'Skip Gearset Items' filter (default ON) — items currently assigned to any saved gearset are excluded from the scan, so Discard All can never delete gear you actively use.\nv1.0.8: Added /acplugin command for consistent access alongside /ac legacy alias.\nv1.0.7: UI redesign — removed Auto-Discard toggle; separate Move To Inventory and Discard All buttons; both now use random 800-1100ms delays for consistent pacing; direct discard from armoury is now the default for Discard All.\nv1.0.6: Direct discard from armoury — new option (under Auto-Discard) skips the move-to-inventory step and discards items straight from the armoury slot, with automatic fallback to move+discard if the game rejects it.\nv1.0.5: Internal cleanup; repo renamed to AschyQOL.\nv1.0.4: Discard All uses random 800-1100ms delay between items; Cancel Queue button.\nv1.0.3: Auto-Discard mode via InventoryManager.DiscardItem.\nv1.0.0: Initial release.",
+    "Changelog": "v1.0.9: New 'Skip Gearset Items' filter (default ON) ï¿½ items currently assigned to any saved gearset are excluded from the scan, so Discard All can never delete gear you actively use.\nv1.0.8: Added /acplugin command for consistent access alongside /ac legacy alias.\nv1.0.7: UI redesign ï¿½ removed Auto-Discard toggle; separate Move To Inventory and Discard All buttons; both now use random 800-1100ms delays for consistent pacing; direct discard from armoury is now the default for Discard All.\nv1.0.6: Direct discard from armoury ï¿½ new option (under Auto-Discard) skips the move-to-inventory step and discards items straight from the armoury slot, with automatic fallback to move+discard if the game rejects it.\nv1.0.5: Internal cleanup; repo renamed to AschyQOL.\nv1.0.4: Discard All uses random 800-1100ms delay between items; Cancel Queue button.\nv1.0.3: Auto-Discard mode via InventoryManager.DiscardItem.\nv1.0.0: Initial release.",
     "InternalName": "ArmouryCleaner",
     "AssemblyVersion": "1.0.9.0",
     "TestingAssemblyVersion": "1.0.9.0",
@@ -70,8 +70,8 @@
     "Author": "Market Assistant Dev",
     "Name": "QuestNav",
     "Punchline": "One-click teleport to the nearest aetheryte for each active quest.",
-    "Description": "QuestNav lists all your active quests and adds a Teleport button next to each one. Clicking it teleports you to the nearest unlocked aetheryte to the quest's location — no more hunting through the map.",
-    "Changelog": "v1.1.11: Full quest database access — GetAllQuests() retrieves every quest with complete step information. AllSteps list includes step titles and NPC locations for navigation.\nv1.1.10: Rewrote arrow direction using direct vector projection onto player's forward/right axes — should now reliably point to the quest target.\nv1.1.9: Smaller default window (360x160); wider action column; Flag/Unflag toggle button with tooltip; tooltips on all buttons.\nv1.1.8: Fixed arrow direction formula.\nv1.1.7: Major UI improvements — compact row heights, single-line quest info, smaller window.\nv1.1.6: Fixed arrow pointing wrong direction; event-driven quest refresh.\nv1.1.5: UI redesign — sleeker 2-column layout, collapsible settings.\nv1.1.4: Fixed quest lookup with improved error handling.\nv1.1.3: Arrow background opacity slider.\nv1.1.2: Fix arrow overlay never appearing.\nv1.1.1: Fix crash on unknown quest IDs.\nv1.1.0: Arrow overlay, teleport cost, zone highlight, map flag, compact mode, auto-refresh.\nv1.0.0: Initial release.",
+    "Description": "QuestNav lists all your active quests and adds a Teleport button next to each one. Clicking it teleports you to the nearest unlocked aetheryte to the quest's location ï¿½ no more hunting through the map.",
+    "Changelog": "v1.1.11: Full quest database access ï¿½ GetAllQuests() retrieves every quest with complete step information. AllSteps list includes step titles and NPC locations for navigation.\nv1.1.10: Rewrote arrow direction using direct vector projection onto player's forward/right axes ï¿½ should now reliably point to the quest target.\nv1.1.9: Smaller default window (360x160); wider action column; Flag/Unflag toggle button with tooltip; tooltips on all buttons.\nv1.1.8: Fixed arrow direction formula.\nv1.1.7: Major UI improvements ï¿½ compact row heights, single-line quest info, smaller window.\nv1.1.6: Fixed arrow pointing wrong direction; event-driven quest refresh.\nv1.1.5: UI redesign ï¿½ sleeker 2-column layout, collapsible settings.\nv1.1.4: Fixed quest lookup with improved error handling.\nv1.1.3: Arrow background opacity slider.\nv1.1.2: Fix arrow overlay never appearing.\nv1.1.1: Fix crash on unknown quest IDs.\nv1.1.0: Arrow overlay, teleport cost, zone highlight, map flag, compact mode, auto-refresh.\nv1.0.0: Initial release.",
     "InternalName": "QuestNav",
     "AssemblyVersion": "1.1.13.0",
     "TestingAssemblyVersion": "1.1.13.0",
@@ -106,15 +106,15 @@
     "Description": "Adds a cast-bar overlay that marks the slidecasting timeframe so you can start moving without interrupting the cast. Includes an optional audio cue when the safe window begins.",
     "Changelog": "v1.0.0: Initial release with cast-bar safe-zone overlay, configurable timing, and optional safe-move sound cue.",
     "InternalName": "Slidecaster",
-    "AssemblyVersion": "1.0.4.0",
-    "TestingAssemblyVersion": "1.0.4.0",
+    "AssemblyVersion": "1.0.5.0",
+    "TestingAssemblyVersion": "1.0.5.0",
     "IsHide": false,
     "IsTestingExclusive": false,
     "RepoUrl": "https://github.com/Aschmies/AschyQOL",
     "IconUrl": "https://raw.githubusercontent.com/Aschmies/AschyQOL/main/assets/icon-market-master-pro.png",
-    "DownloadLinkInstall": "https://github.com/Aschmies/AschyQOL/releases/download/sc-v1.0.4/Slidecaster-sc-v1.0.4.zip",
-    "DownloadLinkUpdate": "https://github.com/Aschmies/AschyQOL/releases/download/sc-v1.0.4/Slidecaster-sc-v1.0.4.zip",
-    "DownloadLinkTesting": "https://github.com/Aschmies/AschyQOL/releases/download/sc-v1.0.4/Slidecaster-sc-v1.0.4.zip",
+    "DownloadLinkInstall": "https://github.com/Aschmies/AschyQOL/releases/download/sc-v1.0.5/Slidecaster-sc-v1.0.5.zip",
+    "DownloadLinkUpdate": "https://github.com/Aschmies/AschyQOL/releases/download/sc-v1.0.5/Slidecaster-sc-v1.0.5.zip",
+    "DownloadLinkTesting": "https://github.com/Aschmies/AschyQOL/releases/download/sc-v1.0.5/Slidecaster-sc-v1.0.5.zip",
     "DalamudApiLevel": 15,
     "ApplicableVersion": "any",
     "LoadRequiredState": 0,
@@ -129,7 +129,7 @@
       "slidecast",
       "overlay"
     ],
-    "LastUpdated": 1778400858,
+    "LastUpdated": 1778403030,
     "DownloadCount": 0
   }
 ]
