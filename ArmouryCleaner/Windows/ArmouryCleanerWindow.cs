@@ -71,7 +71,7 @@ namespace ArmouryCleaner.Windows
             if (discardTimer.IsRunning && discardTimer.ElapsedMilliseconds < nextDelayMs) return;
 
             var item = discardQueue.Dequeue();
-            var (success, msg) = armouryService.MoveAndDiscard(item);
+            var (success, msg) = DiscardWithFallback(item);
             var done = discardTotal - discardQueue.Count;
             if (success)
                 scanResults.Remove(item);
@@ -262,6 +262,18 @@ namespace ArmouryCleaner.Windows
             if (Config.AutoDiscard)
             {
                 ImGui.SameLine();
+                var direct = Config.DiscardDirectlyFromArmoury;
+                if (ImGui.Checkbox("Discard from armoury directly##directdiscard", ref direct))
+                {
+                    Config.DiscardDirectlyFromArmoury = direct;
+                    Config.Save();
+                }
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Skip the move-to-inventory step entirely — discard directly from the armoury slot.\nFaster and avoids touching your bags. Falls back to move+discard if the game rejects it.");
+            }
+            if (Config.AutoDiscard)
+            {
+                ImGui.SameLine();
                 ImGui.TextColored(new Vector4(1f, 0.4f, 0.2f, 1f), "WARNING: items will be permanently deleted!");
             }
 
@@ -303,7 +315,7 @@ namespace ArmouryCleaner.Windows
                     if (ImGui.SmallButton($"{actionLabel}##act{i}"))
                     {
                         var (success, msg) = Config.AutoDiscard
-                            ? armouryService.MoveAndDiscard(item)
+                            ? DiscardWithFallback(item)
                             : armouryService.MoveToInventory(item);
                         statusMessage = msg;
                         if (success)
@@ -385,6 +397,17 @@ namespace ArmouryCleaner.Windows
                 ImGui.Spacing();
                 ImGui.TextDisabled("Items moved to inventory can be discarded via right-click → Discard.");
             }
+        }
+
+        private (bool Success, string Message) DiscardWithFallback(ArmouryItem item)
+        {
+            if (Config.DiscardDirectlyFromArmoury)
+            {
+                var (ok, msg) = armouryService.DiscardFromArmoury(item);
+                if (ok) return (true, msg);
+                // Fall through to move+discard if the game rejected the direct discard
+            }
+            return armouryService.MoveAndDiscard(item);
         }
 
         private void ToggleJob(string abbr, bool nowEnabled)

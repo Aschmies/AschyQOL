@@ -14,12 +14,12 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute(("ArmouryCleaner: filter and discard unwanted items from your armoury chest by job," +
     " level, and item level."))]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.3.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.3+8960a54b08cd21920f39ecaf8c765d45b3553d0c")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.6.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.6+30634b428645c3c5670cd9b64c3a3d198dc1a322")]
 [assembly: System.Reflection.AssemblyProductAttribute("ArmouryCleaner")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ArmouryCleaner")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.3.0")]
-[assembly: System.Reflection.AssemblyMetadataAttribute("RepositoryUrl", "https://github.com/Aschmies/UndercutterFFXIV.git")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.6.0")]
+[assembly: System.Reflection.AssemblyMetadataAttribute("RepositoryUrl", "https://github.com/Aschmies/AschyQOL.git")]
 [assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
 [assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
 

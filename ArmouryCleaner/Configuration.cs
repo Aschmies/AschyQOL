@@ -42,6 +42,11 @@ namespace ArmouryCleaner
         // When false (default): only move to inventory, user discards manually
         public bool AutoDiscard { get; set; } = false;
 
+        // When true (and AutoDiscard is on): call DiscardItem directly on the armoury slot,
+        // skipping the move-to-inventory step. Falls back to move+discard if the game rejects
+        // the direct discard. Faster but slightly less compatible across patches.
+        public bool DiscardDirectlyFromArmoury { get; set; } = true;
+
         private IDalamudPluginInterface? pluginInterface;
 
         public void Initialize(IDalamudPluginInterface pi) => pluginInterface = pi;

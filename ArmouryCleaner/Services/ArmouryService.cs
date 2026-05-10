@@ -136,6 +136,29 @@ namespace ArmouryCleaner.Services
             return (false, "No free inventory slot found.");
         }
 
+        /// <summary>
+        /// Discards directly from the armoury container without staging through the player
+        /// inventory. Faster (single game packet) and avoids briefly polluting the bag, but the
+        /// game may reject some discards from armoury slots — caller should fall back to
+        /// MoveAndDiscard if this returns Success=false with a non-zero discard code.
+        /// </summary>
+        public (bool Success, string Message) DiscardFromArmoury(ArmouryItem item)
+        {
+            var mgr = InventoryManager.Instance();
+            if (mgr == null)
+                return (false, "InventoryManager unavailable.");
+
+            var discardResult = mgr->DiscardItem(item.ContainerType, (ushort)item.Slot);
+            if (discardResult == 0)
+            {
+                log.Debug($"[ArmouryCleaner] Discarded '{item.Name}' directly from {item.ContainerType}[{item.Slot}].");
+                return (true, $"Discarded '{item.Name}' from armoury.");
+            }
+
+            log.Warning($"[ArmouryCleaner] Direct discard from {item.ContainerType}[{item.Slot}] failed (code {discardResult}) for '{item.Name}'.");
+            return (false, $"Direct discard failed (code {discardResult}).");
+        }
+
         public (bool Success, string Message) MoveAndDiscard(ArmouryItem item)
         {
             var mgr = InventoryManager.Instance();
