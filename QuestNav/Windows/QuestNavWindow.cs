@@ -131,7 +131,6 @@ namespace QuestNav.Windows
                 return quest;
 
             // Try to find a step that has valid location data.
-            // Match by sequence index first, then fall back to any available step.
             QuestStep? targetStep = null;
 
             // First try to find a step at or just below the current sequence
@@ -165,43 +164,80 @@ namespace QuestNav.Windows
                 targetStep = quest.AllSteps.FirstOrDefault(HasStepLocation);
             }
 
-            // If we found a step but the location is just the quest giver, try to find the NPC
-            // mentioned in the objective text (e.g., "Speak with Yellow Moon")
-            if (targetStep != null && HasStepLocation(targetStep))
-            {
-                // Try to extract NPC name from objective and look them up in the current zone
-                var objectives = targetStep.Objectives;
-                if (!string.IsNullOrWhiteSpace(objectives))
-                {
-                    var npcName = ExtractNpcNameFromObjective(objectives);
-                    if (!string.IsNullOrWhiteSpace(npcName))
-                    {
-                        var npcCoords = questService.FindNpcCoordinates(npcName);
-                        if (npcCoords.HasValue && npcCoords.Value.WorldX.HasValue && npcCoords.Value.WorldZ.HasValue)
-                        {
-                            // Found the NPC! Update the target to use their position
-                            targetStep = targetStep with
-                            {
-                                NpcWorldX = npcCoords.Value.WorldX,
-                                NpcWorldZ = npcCoords.Value.WorldZ,
-                            };
-                        }
-                    }
-                }
-            }
-
             if (targetStep == null)
                 return quest;
 
+            // Now try to resolve the actual objective coordinates
+            var resolvedStep = ResolveObjectiveCoordinates(targetStep);
+
             return quest with
             {
-                TerritoryId = targetStep.NpcTerritoryId ?? quest.TerritoryId,
-                MapId = targetStep.NpcMapId ?? quest.MapId,
-                WorldX = targetStep.NpcWorldX ?? quest.WorldX,
-                WorldZ = targetStep.NpcWorldZ ?? quest.WorldZ,
-                MapX = targetStep.NpcMapX ?? quest.MapX,
-                MapY = targetStep.NpcMapY ?? quest.MapY,
+                TerritoryId = resolvedStep.NpcTerritoryId ?? quest.TerritoryId,
+                MapId = resolvedStep.NpcMapId ?? quest.MapId,
+                WorldX = resolvedStep.NpcWorldX ?? quest.WorldX,
+                WorldZ = resolvedStep.NpcWorldZ ?? quest.WorldZ,
+                MapX = resolvedStep.NpcMapX ?? quest.MapX,
+                MapY = resolvedStep.NpcMapY ?? quest.MapY,
             };
+        }
+
+        private QuestStep ResolveObjectiveCoordinates(QuestStep step)
+        {
+            var objectives = step.Objectives;
+            if (string.IsNullOrWhiteSpace(objectives))
+                return step;
+
+            // Try NPC resolution first (highest confidence)
+            var npcName = ExtractNpcNameFromObjective(objectives);
+            if (!string.IsNullOrWhiteSpace(npcName))
+            {
+                var npcCoords = questService.FindNpcCoordinates(npcName);
+                if (npcCoords.HasValue && npcCoords.Value.WorldX.HasValue && npcCoords.Value.WorldZ.HasValue)
+                {
+                    return step with
+                    {
+                        NpcWorldX = npcCoords.Value.WorldX,
+                        NpcWorldZ = npcCoords.Value.WorldZ,
+                    };
+                }
+            }
+
+            // Try location resolution second (medium confidence)
+            var locationName = ExtractLocationNameFromObjective(objectives);
+            if (!string.IsNullOrWhiteSpace(locationName))
+            {
+                var locationCoords = questService.FindLocationCoordinates(locationName);
+                if (locationCoords.HasValue && locationCoords.Value.WorldX.HasValue && locationCoords.Value.WorldZ.HasValue)
+                {
+                    var updatedStep = step with
+                    {
+                        NpcWorldX = locationCoords.Value.WorldX,
+                        NpcWorldZ = locationCoords.Value.WorldZ,
+                    };
+
+                    // Update territory/map if available
+                    if (locationCoords.Value.TerritoryId.HasValue)
+                        updatedStep = updatedStep with { NpcTerritoryId = locationCoords.Value.TerritoryId };
+                    if (locationCoords.Value.MapId.HasValue)
+                        updatedStep = updatedStep with { NpcMapId = locationCoords.Value.MapId };
+
+                    return updatedStep;
+                }
+            }
+
+            // Try quest marker resolution last (lowest confidence, depends on game state)
+            var markerCoords = questService.GetQuestMarkerCoordinates();
+            if (markerCoords.HasValue && markerCoords.Value.WorldX.HasValue && markerCoords.Value.WorldZ.HasValue)
+            {
+                return step with
+                {
+                    NpcWorldX = markerCoords.Value.WorldX,
+                    NpcWorldZ = markerCoords.Value.WorldZ,
+                };
+            }
+
+            // Fall back to original step data
+            return step;
         }
 
         private static string? ExtractNpcNameFromObjective(string objective)
@@ -225,6 +261,41 @@ namespace QuestNav.Windows
                         !name.Equals("the") && !name.Equals("a"))
                     {
                         return name;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private static string? ExtractLocationNameFromObjective(string objective)
+        {
+            // Look for location-based objective patterns
+            var patterns = new[] 
+            { 
+                @"[Gg]o to (?:the )?(.+?)(?:\.|,|$)",
+                @"[Hh]ead to (?:the )?(.+?)(?:\.|,|$)",
+                @"[Vv]isit (?:the )?(.+?)(?:\.|,|$)",
+                @"[Ii]nvestigate (?:the )?(.+?)(?:\.|,|$)",
+                @"[Dd]estroy (?:the )?(.+?)(?:\.|,|$)",
+                @"[Ee]xamine (?:the )?(.+?)(?:\.|,|$)",
+                @"[Gg]ather (?:the )?(.+?)(?:\.|,|$)",
+                @"[Ss]ubmit.*?at (?:the )?(.+?)(?:\.|,|$)",
+                @"(?:the|near|at) ([A-Z][a-zA-Z\s]+)(?:\.|,|$)"
+            };
+
+            foreach (var pattern in patterns)
+            {
+                var match = Regex.Match(objective, pattern);
+                if (match.Success && match.Groups.Count > 1)
+                {
+                    var location = match.Groups[1].Value.Trim();
+                    // Filter out common non-location words
+                    if (!string.IsNullOrWhiteSpace(location) && location.Length > 2 && 
+                        !location.Equals("a") && !location.Equals("the") && 
+                        !location.StartsWith("your") && !location.StartsWith("their"))
+                    {
+                        return location;
                     }
                 }
             }

@@ -1,6 +1,7 @@
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
+using FFXIVClientStructs.FFXIV.Client.System.Framework;
 using Lumina.Excel.Sheets;
 using System;
 using System.Collections.Generic;
@@ -406,6 +407,77 @@ namespace QuestNav.Services
             catch (Exception ex)
             {
                 log?.Debug(ex, $"[QuestNav] Failed to find NPC '{npcName}' in object table");
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Searches the object table for any object matching a location name.
+        /// This helps find coordinate targets for location-based objectives.
+        /// </summary>
+        public (float? WorldX, float? WorldZ, uint? TerritoryId, uint? MapId)? FindLocationCoordinates(string locationName)
+        {
+            if (string.IsNullOrWhiteSpace(locationName) || objectTable == null)
+                return null;
+
+            try
+            {
+                // Try to find an object or landmark with a matching name
+                var location = objectTable
+                    .Where(o => o != null && !string.IsNullOrEmpty(o.Name?.TextValue))
+                    .OrderBy(o => 
+                    {
+                        // Score matches: exact first, then contains (case-insensitive)
+                        var name = o!.Name!.TextValue;
+                        if (name.Equals(locationName, StringComparison.OrdinalIgnoreCase)) return 0;
+                        if (name.Contains(locationName, StringComparison.OrdinalIgnoreCase)) return 1;
+                        return 2;
+                    })
+                    .FirstOrDefault(o => 
+                    {
+                        var name = o?.Name?.TextValue ?? "";
+                        return name.Equals(locationName, StringComparison.OrdinalIgnoreCase) ||
+                               name.Contains(locationName, StringComparison.OrdinalIgnoreCase);
+                    });
+
+                if (location != null)
+                {
+                    // Get territory and map info from current player context
+                    // For now, we'll use 0 as placeholder - in actual use this would come from clientState
+                    return (location.Position.X, location.Position.Z, null, null);
+                }
+            }
+            catch (Exception ex)
+            {
+                log?.Debug(ex, $"[QuestNav] Failed to find location '{locationName}'");
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Attempts to extract and return active waypoint coordinates from the UI/game state.
+        /// This is used for objective locations that may have dynamically placed markers.
+        /// </summary>
+        public (float? WorldX, float? WorldZ)? GetQuestMarkerCoordinates()
+        {
+            try
+            {
+                // Try to get waypoint coordinates from UIModule if available
+                // This would require accessing internal game structures
+                // For now, this is a placeholder for future enhancement
+                var uiModule = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance()->GetUIModule();
+                if (uiModule == null) return null;
+
+                // Quest markers are typically stored in the map UI state
+                // We'd need to access the RaptureAtkModule and query active markers
+                // This is advanced and requires careful memory access
+                return null;
+            }
+            catch (Exception ex)
+            {
+                log?.Debug(ex, "[QuestNav] Failed to retrieve quest marker coordinates");
             }
 
             return null;
