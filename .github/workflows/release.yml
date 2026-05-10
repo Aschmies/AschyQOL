@@ -40,22 +40,29 @@ jobs:
           Remove-Item "$out\dalamud.zip"
           echo "DALAMUD_HOME=$out" >> $env:GITHUB_ENV
 
-      # NuGet restore uses nuget.config in the repo root
+      # NuGet restore uses nuget.config in the repo root.
+      # Explicitly pass the project file so dotnet restore only restores
+      # UndercutterFFXIV.csproj and does not discover/restore subdirectory
+      # projects (ArmouryCleaner, QuestNav) which could confuse the build.
       - name: Restore dependencies
-        run: dotnet restore
+        run: dotnet restore UndercutterFFXIV.csproj
 
       - name: Build Release
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build UndercutterFFXIV.csproj --configuration Release --no-restore
 
       # DalamudPackager (included in Dalamud.NET.Sdk) creates a zip at:
-      #   bin\Release\net10.0-windows\UndercutterFFXIV\latest.zip
+      #   bin\Release\UndercutterFFXIV\latest.zip
       - name: Locate plugin zip
         id: find_zip
         shell: pwsh
         run: |
           $zip = Get-ChildItem -Path "bin\Release" -Recurse -Filter "latest.zip" |
             Select-Object -First 1
-          if (-not $zip) { throw "Could not find latest.zip under bin\Release â€” DalamudPackager may not have run." }
+          if (-not $zip) {
+            Write-Host "Contents of bin\Release:"
+            Get-ChildItem "bin\Release" -Recurse | Select-Object FullName | Format-List
+            throw "Could not find latest.zip under bin\Release -- DalamudPackager may not have run."
+          }
           Write-Host "Found zip: $($zip.FullName)"
           echo "ZIP_PATH=$($zip.FullName)" >> $env:GITHUB_OUTPUT
 
