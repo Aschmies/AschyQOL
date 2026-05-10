@@ -23,14 +23,6 @@ public sealed class BagAssistantWindow : Window, IDisposable
     private QuickPreset? confirmingPreset;
     private bool confirmingSmartSort;
 
-    // Sort execution queue (one move per tick, paced). Items are uniform — both rule-based and
-    // quick-sort flows enqueue (item, destBag) tuples.
-    private readonly Queue<(InventoryItemInfo Item, FFXIVClientStructs.FFXIV.Client.Game.InventoryType DestBag)> moveQueue = new();
-    private int queueTotal;
-    private readonly Stopwatch queueTimer = new();
-    private int nextDelayMs;
-    private static readonly Random Rng = new();
-
     // Cached UI category list.
     private readonly List<(uint RowId, string Name)> uiCategoryCache = new();
     private string uiCategoryFilter = string.Empty;
@@ -82,8 +74,6 @@ public sealed class BagAssistantWindow : Window, IDisposable
 
     public override void Draw()
     {
-        TickMoveQueue();
-
         if (ImGui.BeginTabBar("##BAQTabs"))
         {
             if (ImGui.BeginTabItem("Quick Sort"))
@@ -114,7 +104,12 @@ public sealed class BagAssistantWindow : Window, IDisposable
             ImGui.EndTabBar();
         }
 
-        if (!string.IsNullOrEmpty(statusMessage))
+        if (!string.IsNullOrEmpty(plugin.SortQueueStatus))
+        {
+            ImGui.Separator();
+            ImGui.TextColored(new Vector4(0.7f, 0.9f, 1f, 1f), plugin.SortQueueStatus);
+        }
+        else if (!string.IsNullOrEmpty(statusMessage))
         {
             ImGui.Separator();
             ImGui.TextColored(new Vector4(0.7f, 0.9f, 1f, 1f), statusMessage);
@@ -128,7 +123,7 @@ public sealed class BagAssistantWindow : Window, IDisposable
         ImGui.TextWrapped("One-click sorts. Pick a preset and BagAssistant will move every matching item into the named bag. No rules, no setup.");
         ImGui.Spacing();
 
-        var queueBusy = moveQueue.Count > 0;
+        var queueBusy = plugin.IsSortQueueBusy;
 
         // ── Smart Sort Everything ───────────────────────────────────────────
         ImGui.TextColored(new Vector4(1f, 0.85f, 0.3f, 1f), "★ Smart Sort Everything");
@@ -145,7 +140,7 @@ public sealed class BagAssistantWindow : Window, IDisposable
             }
             else
             {
-                RunSmartSort();
+                plugin.RunSmartSort();
                 confirmingSmartSort = false;
             }
         }
@@ -181,7 +176,7 @@ public sealed class BagAssistantWindow : Window, IDisposable
                 }
                 else
                 {
-                    RunPreset(preset);
+                    plugin.RunPreset(preset);
                     confirmingPreset = null;
                 }
             }
@@ -206,32 +201,12 @@ public sealed class BagAssistantWindow : Window, IDisposable
         {
             ImGui.Separator();
             if (ImGui.Button("Stop Sort##stopquick"))
-            {
-                moveQueue.Clear();
-                queueTimer.Stop();
-                statusMessage = "Sort stopped by user.";
-            }
+                plugin.StopSort();
         }
 
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.TextDisabled("Need more control? Use the 'Custom Rules' tab to build your own multi-condition rules.");
-    }
-
-    private void RunSmartSort()
-    {
-        var bagFlags = GetBagFlags();
-        var items = plugin.InventoryService.ScanBags(bagFlags);
-        var moves = QuickSortPresets.BuildSmartSortPlan(items, bagFlags);
-        EnqueueQuickMoves(moves, "Smart Sort");
-    }
-
-    private void RunPreset(QuickPreset preset)
-    {
-        var bagFlags = GetBagFlags();
-        var items = plugin.InventoryService.ScanBags(bagFlags);
-        var moves = QuickSortPresets.BuildPresetPlan(preset, items, bagFlags);
-        EnqueueQuickMoves(moves, preset.Name);
     }
 
     // ─── Tab: Rules ──────────────────────────────────────────────────────────
@@ -570,7 +545,7 @@ public sealed class BagAssistantWindow : Window, IDisposable
         }
 
         ImGui.SameLine();
-        var canSort = moveQueue.Count == 0 && Config.Rules.Any(r => r.Enabled && r.Target == SortTarget.SpecificBag);
+        var canSort = !plugin.IsSortQueueBusy && Config.Rules.Any(r => r.Enabled && r.Target == SortTarget.SpecificBag);
         if (!canSort) ImGui.BeginDisabled();
 
         if (ImGui.Button(Config.RequireConfirmation && !confirmingSort ? "Sort Now..." : "Confirm Sort Now"))
@@ -581,7 +556,7 @@ public sealed class BagAssistantWindow : Window, IDisposable
             }
             else
             {
-                StartSort();
+                plugin.RunAllRules();
                 confirmingSort = false;
             }
         }
@@ -594,15 +569,11 @@ public sealed class BagAssistantWindow : Window, IDisposable
             ImGui.TextColored(new Vector4(1f, 0.85f, 0.3f, 1f), "Click 'Confirm Sort Now' to begin moving items.");
         }
 
-        if (moveQueue.Count > 0)
+        if (plugin.IsSortQueueBusy)
         {
             ImGui.SameLine();
             if (ImGui.Button("Stop Sort"))
-            {
-                moveQueue.Clear();
-                queueTimer.Stop();
-                statusMessage = "Sort stopped by user.";
-            }
+                plugin.StopSort();
         }
 
         ImGui.Separator();
@@ -667,62 +638,6 @@ public sealed class BagAssistantWindow : Window, IDisposable
         _ => t.ToString(),
     };
 
-    private void StartSort()
-    {
-        var plan = plugin.SortRunner.BuildPlan(Config);
-        if (plan.Count == 0)
-        {
-            statusMessage = "Nothing to do — every item is already in place (or no rule has a destination).";
-            return;
-        }
-        foreach (var entry in plan) moveQueue.Enqueue((entry.Item, entry.DestBag));
-        queueTotal = plan.Count;
-        nextDelayMs = 0;
-        queueTimer.Restart();
-        statusMessage = $"Sorting {queueTotal} item(s)...";
-    }
-
-    private void EnqueueQuickMoves(IReadOnlyList<QuickMove> moves, string description)
-    {
-        if (moves.Count == 0)
-        {
-            statusMessage = $"{description}: nothing to move.";
-            return;
-        }
-        foreach (var m in moves) moveQueue.Enqueue((m.Item, m.DestBag));
-        queueTotal = moves.Count;
-        nextDelayMs = 0;
-        queueTimer.Restart();
-        statusMessage = $"{description}: moving {queueTotal} item(s)...";
-    }
-
-    private void TickMoveQueue()
-    {
-        if (moveQueue.Count == 0) return;
-        if (queueTimer.IsRunning && queueTimer.ElapsedMilliseconds < nextDelayMs) return;
-
-        var entry = moveQueue.Dequeue();
-        var (success, msg) = plugin.InventoryService.MoveOrSwap(entry.Item, entry.DestBag);
-        var done = queueTotal - moveQueue.Count;
-
-        if (moveQueue.Count == 0)
-        {
-            queueTimer.Stop();
-            statusMessage = $"Sort complete: {done}/{queueTotal} processed.";
-        }
-        else
-        {
-            var min = Math.Max(20, Config.MoveDelayMinMs);
-            var max = Math.Max(min + 1, Config.MoveDelayMaxMs);
-            nextDelayMs = Rng.Next(min, max);
-            queueTimer.Restart();
-            statusMessage = $"Sorting... {done}/{queueTotal} (next in {nextDelayMs}ms)";
-        }
-
-        if (!success)
-            statusMessage = $"[{done}/{queueTotal}] {msg}";
-    }
-
     // ─── Tab: Settings ──────────────────────────────────────────────────────
 
     private void DrawSettingsTab()
@@ -750,6 +665,29 @@ public sealed class BagAssistantWindow : Window, IDisposable
         ImGui.SameLine();
         ImGui.SetNextItemWidth(120);
         if (ImGui.InputInt("Max ms##maxdelay", ref max)) { Config.MoveDelayMaxMs = Math.Max(Config.MoveDelayMinMs + 1, max); Config.Save(); }
+
+        ImGui.Separator();
+        ImGui.TextUnformatted("Inventory overlay buttons");
+        var showOverlay = Config.ShowInventoryOverlay;
+        if (ImGui.Checkbox("Show floating buttons above the inventory window", ref showOverlay))
+        {
+            Config.ShowInventoryOverlay = showOverlay;
+            Config.Save();
+        }
+        ImGui.TextDisabled("When enabled, a 'Smart Sort' button (and an optional rule button) appears above the inventory addon while it is open.");
+
+        ImGui.Spacing();
+        ImGui.TextUnformatted("Overlay rule button:");
+        var ruleNames = new List<string> { "(none)" };
+        ruleNames.AddRange(Config.Rules.Select(r => r.Name));
+        var idx = Math.Clamp(Config.OverlayRuleIndex + 1, 0, ruleNames.Count - 1);
+        ImGui.SetNextItemWidth(280);
+        if (ImGui.Combo("Rule##overlayrule", ref idx, string.Join("\0", ruleNames) + "\0"))
+        {
+            Config.OverlayRuleIndex = idx - 1;
+            Config.Save();
+        }
+        ImGui.TextDisabled("Pick which custom rule the overlay's second button runs. Build rules in the 'Custom Rules' tab.");
     }
 
     private void DrawBagToggle(string label, Func<Configuration, bool> get, Action<Configuration, bool> set)
