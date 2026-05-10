@@ -37,7 +37,7 @@ public static class QuickSortPresets
     {
         Name = "Gear → Bag 1",
         Description = "Move every equippable item (weapons, armor, accessories) into Bag 1.",
-        Match = i => i.IsEquippable,
+        Match = i => i.IsEquippable || i.Name.EndsWith("Arms") || i.Name.EndsWith("Coffer") || i.Name.EndsWith("Attire") || i.Name.EndsWith("Weapon") || i.Name.EndsWith("Equipment"),
         DestBagIndex = 0,
     };
 
@@ -45,7 +45,7 @@ public static class QuickSortPresets
     {
         Name = "HQ Gear → Bag 1",
         Description = "Move only HQ equippable gear into Bag 1.",
-        Match = i => i.IsEquippable && i.IsHQ,
+        Match = i => (i.IsEquippable || i.Name.EndsWith("Arms") || i.Name.EndsWith("Coffer") || i.Name.EndsWith("Attire") || i.Name.EndsWith("Weapon") || i.Name.EndsWith("Equipment")) && i.IsHQ,
         DestBagIndex = 0,
     };
 
@@ -322,7 +322,7 @@ public static class QuickSortPresets
         public static bool IsJunk(InventoryItemInfo i, Configuration config)
     {
         if (i.Rarity != 1) return false;
-        if (config.ExcludeGearFromJunk && i.IsEquippable) return false;
+        if (config.ExcludeGearFromJunk && (i.IsEquippable || i.Name.EndsWith("Arms") || i.Name.EndsWith("Coffer") || i.Name.EndsWith("Attire") || i.Name.EndsWith("Weapon") || i.Name.EndsWith("Equipment"))) return false;
         if (i.UICategoryRowId == 59 || i.UICategoryRowId == 58) return false;
         if (config.ExcludeConsumablesFromJunk && (i.UICategoryRowId == 44 || i.UICategoryRowId == 46)) return false;
         if (config.ExcludeCraftingFromJunk && i.IsStackable) return false;
@@ -426,7 +426,7 @@ public static class QuickSortPresets
             var targetSlots = kvp.Value;
             var matchedItems = itemsToMove.Where(i => tag switch
             {
-                "Gear" => i.IsEquippable,
+                "Gear" => i.IsEquippable || i.Name.EndsWith("Arms") || i.Name.EndsWith("Coffer") || i.Name.EndsWith("Attire") || i.Name.EndsWith("Weapon") || i.Name.EndsWith("Equipment"),
                 "Materia" => i.UICategoryRowId == 58,
                 "Consumables" => i.UICategoryRowId == 44 || i.UICategoryRowId == 46,
                 "Crafting" => i.IsStackable && !IsJunk(i, config) && i.UICategoryRowId != 58 && i.UICategoryRowId != 59 && i.UICategoryRowId != 44 && i.UICategoryRowId != 46 && i.UICategoryRowId != 47 && i.UICategoryRowId != 48,

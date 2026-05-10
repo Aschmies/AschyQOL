@@ -301,10 +301,19 @@ public sealed class BagAssistantWindow : Window, IDisposable
         // ── Delete Junk & Undo ──────────────────────────────────────────────
         if (ImGui.Button("Delete All Junk##deljunk", new Vector2(150, 0)))
         {
-            plugin.DeleteJunk();
+            pendingJunkDiscards = plugin.GetJunkItems();
+            openJunkConfirmPopup = true;
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Discard all white (vendor trash) items.");
+        {
+            ImGui.BeginTooltip();
+            ImGui.Text("Discard all white (vendor trash) items.");
+            ImGui.PushStyleColor(ImGuiCol.Text, new System.Numerics.Vector4(1, 0, 0, 1));
+            ImGui.Text("DELETES ALL ITEMS IN YOUR INVENTORY THAT HAVE A VENDOR PRICE UNDER \"MAX VENDOR PRICE FOR JUNK\" IN SETTINGS...");
+            ImGui.Text("(Note: Currently an experimental feature and may fail, use at own risk.)");
+            ImGui.PopStyleColor();
+            ImGui.EndTooltip();
+        }
 
         ImGui.SameLine();
         if (plugin.CanUndo)
@@ -831,6 +840,15 @@ public sealed class BagAssistantWindow : Window, IDisposable
             Config.ShowVisualZoneNumbers = showVisualNumbers;
             Config.Save();
         }
+
+        var applyZonesMerge = Config.ApplyZonesAutoMerge;
+        if (ImGui.Checkbox("Enable Auto-Merge for Apply Zones", ref applyZonesMerge))
+        {
+            Config.ApplyZonesAutoMerge = applyZonesMerge;
+            Config.Save();
+        }
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Automatically runs Merge Stacks before arranging items to your Painted Layout Zones to prevent duplicates occupying multiple painted slots.");
+
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();

@@ -27,6 +27,7 @@ public sealed class InventoryOverlayWindow : Window, IDisposable
 
     private Vector2 anchorPos;
     private Vector2 anchorSize;
+    private bool openJunkConfirmPopup = true;
 
     public InventoryOverlayWindow(BagAssistantPlugin plugin, IGameGui gameGui)
         : base("##BagAssistantInventoryOverlay",
@@ -137,10 +138,42 @@ public sealed class InventoryOverlayWindow : Window, IDisposable
         // Row 2: Delete Junk, Presets
         if (ImGui.Button("Delete Junk##ov_junk", new Vector2(80, 0)))
         {
-            plugin.DeleteJunk();
+            ImGui.OpenPopup("Confirm Delete Junk##ov");
+            openJunkConfirmPopup = true;
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Delete all vendor trash (white rarity items).");
+        {
+            ImGui.BeginTooltip();
+            ImGui.Text("Delete all vendor trash (white rarity items).");
+            ImGui.PushStyleColor(ImGuiCol.Text, new System.Numerics.Vector4(1, 0, 0, 1));
+            ImGui.Text("DELETES ALL ITEMS IN YOUR INVENTORY THAT HAVE A VENDOR PRICE UNDER \"MAX VENDOR PRICE FOR JUNK\" IN SETTINGS...");
+            ImGui.Text("(Note: Currently an experimental feature and may fail, use at own risk.)");
+            ImGui.PopStyleColor();
+            ImGui.EndTooltip();
+        }
+
+        if (ImGui.BeginPopupModal("Confirm Delete Junk##ov", ref openJunkConfirmPopup, ImGuiWindowFlags.AlwaysAutoResize))
+        {
+            ImGui.Text("Are you sure you want to delete all junk items?");
+            ImGui.Text("This matches items with a vendor price under your configured maximum.");
+            ImGui.PushStyleColor(ImGuiCol.Text, new System.Numerics.Vector4(1, 0, 0, 1));
+            ImGui.Text("This action cannot be undone!");
+            ImGui.PopStyleColor();
+            ImGui.Separator();
+
+            if (ImGui.Button("Yes, delete junk", new Vector2(120, 0)))
+            {
+                plugin.DeleteJunk();
+                ImGui.CloseCurrentPopup();
+            }
+            ImGui.SetItemDefaultFocus();
+            ImGui.SameLine();
+            if (ImGui.Button("Cancel", new Vector2(120, 0)))
+            {
+                ImGui.CloseCurrentPopup();
+            }
+            ImGui.EndPopup();
+        }
 
         ImGui.SameLine();
         if (ImGui.SmallButton("Gatherer"))
@@ -207,7 +240,7 @@ public sealed class InventoryOverlayWindow : Window, IDisposable
             
         if (Config.ShowVisualZoneOverlay)
         {
-            DrawVisualZoneMinimap();
+            DrawOverlayOnAddon();
         }
     }
 
@@ -220,57 +253,84 @@ public sealed class InventoryOverlayWindow : Window, IDisposable
         return rule.Enabled ? rule : null;
     }
 
-        private void DrawVisualZoneMinimap()
-    {
-        ImGui.Separator();
-        ImGui.Spacing();
-        ImGui.TextDisabled("Painted Layout Zones Overview");
-        
-        var drawList = ImGui.GetWindowDrawList();
-        var startPos = ImGui.GetCursorScreenPos();
-        float slotSize = 14f;
-        float spacing = 2f;
-        float bagGap = 10f;
-        
-        for (int bagIndex = 0; bagIndex < 4; bagIndex++)
+private void DrawOverlayOnAddon()
         {
-            var bagPos = startPos + new Vector2(bagIndex * (5 * (slotSize + spacing) + bagGap), 0);
-            drawList.AddText(bagPos + new Vector2(0, -15), ImGui.GetColorU32(ImGuiCol.Text), $"B{bagIndex + 1}");
-            for (int r = 0; r < 7; r++)
+            unsafe 
             {
-                for (int c = 0; c < 5; c++)
+                FFXIVClientStructs.FFXIV.Component.GUI.AtkUnitBase* activeAddon = null;
+                foreach (var name in InventoryAddons)
                 {
-                    int slotIndex = r * 5 + c;
-                    int globalIndex = bagIndex * 35 + slotIndex;
-                    string tag = Config.VisualZoneLayout?[globalIndex] ?? "None";
-                    
-                    Vector4 color = new Vector4(0.2f, 0.2f, 0.2f, 1f); // default none
-                    if (tag == "Gear") color = new Vector4(0.2f, 0.6f, 1.0f, 1f);
-                    else if (tag == "Materia") color = new Vector4(0.8f, 0.2f, 0.8f, 1f);
-                    else if (tag == "Consumables") color = new Vector4(0.4f, 0.9f, 0.4f, 1f);
-                    else if (tag == "Crafting") color = new Vector4(0.9f, 0.6f, 0.2f, 1f);
-                    else if (tag == "Gathering") color = new Vector4(0.9f, 0.8f, 0.2f, 1f);
-                    else if (tag == "Crystals") color = new Vector4(0.4f, 0.8f, 0.9f, 1f);
-                    else if (tag == "Junk") color = new Vector4(0.5f, 0.5f, 0.5f, 1f);
-
-                    color.W *= Config.VisualZoneOverlayOpacity;
-
-                    var slotRectMin = bagPos + new Vector2(c * (slotSize + spacing), r * (slotSize + spacing));
-                    var slotRectMax = slotRectMin + new Vector2(slotSize, slotSize);
-                    
-                    drawList.AddRectFilled(slotRectMin, slotRectMax, ImGui.ColorConvertFloat4ToU32(color), 2f);
-
-                    if (Config.ShowVisualZoneNumbers)
+                    var ptr = (FFXIVClientStructs.FFXIV.Component.GUI.AtkUnitBase*)gameGui.GetAddonByName(name, 1);
+                    if (ptr != null && ptr->IsVisible)
                     {
-                        var text = (slotIndex + 1).ToString();
-                        var textSize = ImGui.CalcTextSize(text);
-                        var textPos = slotRectMin + (new Vector2(slotSize, slotSize) - textSize) / 2f;
-                        drawList.AddText(textPos, ImGui.ColorConvertFloat4ToU32(new Vector4(1, 1, 1, Config.VisualZoneOverlayOpacity)), text);
+                        activeAddon = ptr;
+                        break;
+                    }
+                }
+
+                if (activeAddon == null) return;
+
+                var drawList = ImGui.GetBackgroundDrawList();
+                Vector2 addonPos = new Vector2(activeAddon->X, activeAddon->Y);
+                float scale = activeAddon->Scale;
+
+                float startX = 17f * scale; // Experimental X
+                float startY = 84f * scale; // Experimental Y
+                float slotSize = 42f * scale;
+                float spacingX = 4f * scale;
+                float spacingY = 4f * scale;
+                float bagGapX = 15f * scale; 
+
+                int visibleBags = 1;
+                string addonName = System.Runtime.InteropServices.Marshal.PtrToStringUTF8((IntPtr)activeAddon->Name);
+                if (addonName == "InventoryExpansion") visibleBags = 2;
+                if (addonName == "InventoryLarge") visibleBags = 4;
+
+                for (int b = 0; b < visibleBags; b++)
+                {
+                    float bagStartX = addonPos.X + startX + b * (5 * (slotSize + spacingX) + bagGapX);
+                    
+                    for (int r = 0; r < 7; r++)
+                    {
+                        for (int c = 0; c < 5; c++)
+                        {
+                            int slotIndex = r * 5 + c;
+                            int globalIndex = b * 35 + slotIndex;
+                            if (globalIndex >= 140) break;
+
+                            string tag = Config.VisualZoneLayout?[globalIndex] ?? "None";
+                            if (tag == "None") continue;
+                            
+                            Vector4 color = new Vector4(0.2f, 0.2f, 0.2f, 1f);
+                            if (tag == "Gear") color = new Vector4(0.2f, 0.6f, 1.0f, 1f);
+                            else if (tag == "Materia") color = new Vector4(0.8f, 0.2f, 0.8f, 1f);
+                            else if (tag == "Consumables") color = new Vector4(0.4f, 0.9f, 0.4f, 1f);
+                            else if (tag == "Crafting") color = new Vector4(0.9f, 0.6f, 0.2f, 1f);
+                            else if (tag == "Gathering") color = new Vector4(0.9f, 0.8f, 0.2f, 1f);
+                            else if (tag == "Crystals") color = new Vector4(0.4f, 0.8f, 0.9f, 1f);
+                            else if (tag == "Junk") color = new Vector4(0.5f, 0.5f, 0.5f, 1f);
+
+                            color.W *= Config.VisualZoneOverlayOpacity;
+
+                            var slotPosMin = new Vector2(
+                                bagStartX + c * (slotSize + spacingX),
+                                addonPos.Y + startY + r * (slotSize + spacingY)
+                            );
+                            var slotPosMax = slotPosMin + new Vector2(slotSize, slotSize);
+
+                            drawList.AddRectFilled(slotPosMin, slotPosMax, ImGui.ColorConvertFloat4ToU32(color), 4f * scale);
+
+                            if (Config.ShowVisualZoneNumbers)
+                            {
+                                var text = (slotIndex + 1).ToString();
+                                var textSize = ImGui.CalcTextSize(text);
+                                var textPos = slotPosMin + (new Vector2(slotSize, slotSize) - textSize) / 2f;
+                                drawList.AddText(textPos, ImGui.ColorConvertFloat4ToU32(new Vector4(1, 1, 1, Config.VisualZoneOverlayOpacity)), text);
+                            }
+                        }
                     }
                 }
             }
-        }
-        ImGui.Dummy(new Vector2(4 * (5 * (slotSize + spacing) + bagGap), 7 * (slotSize + spacing) + 20f));
     }
 
     private bool TryGetInventoryRect(out Vector2 position, out Vector2 size)

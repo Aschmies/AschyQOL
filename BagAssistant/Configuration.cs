@@ -44,6 +44,9 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>If true, show slot numbers on the visual zone overlay.</summary>
     public bool ShowVisualZoneNumbers { get; set; } = false;
 
+    /// <summary>If true, Apply Zones will automatically trigger a Merge Stacks process first.</summary>
+    public bool ApplyZonesAutoMerge { get; set; } = true;
+
     /// <summary>Random per-move delay range in milliseconds, used to keep sorts human-paced.</summary>
     public int MoveDelayMinMs { get; set; } = 40;
     public int MoveDelayMaxMs { get; set; } = 80;

@@ -277,11 +277,28 @@ public sealed class BagAssistantPlugin : IDalamudPlugin
         return QuickSortPresets.SnapshotBagLayout(items, bagType);
     }
 
-        public void ApplyVisualZones()
+        public void ApplyVisualZones(bool skipAutoMerge = false)
     {
         if (SortQueue.IsBusy) return;
         var bagFlags = GetBagFlags();
         var items = InventoryService.ScanBags(bagFlags);
+
+        if (Configuration.ApplyZonesAutoMerge && !skipAutoMerge)
+        {
+            var mergeMoves = QuickSortPresets.BuildMergeStacks(items, bagFlags);
+            if (mergeMoves.Count > 0)
+            {
+                EnqueueWithIntraBagSort(mergeMoves, "Automated Apply Zones Merge", bagFlags);
+                // Chain the layout arrangement to run immediately after the merge finishes
+                SortQueue.OnComplete = () =>
+                {
+                    SortQueue.OnComplete = null;
+                    ApplyVisualZones(skipAutoMerge: true);
+                };
+                return;
+            }
+        }
+
         var moves = QuickSortPresets.ApplyVisualZones(items, Configuration.VisualZoneLayout, bagFlags, Configuration);
         EnqueueWithIntraBagSort(moves, "Apply Visual Zones", bagFlags);
     }
