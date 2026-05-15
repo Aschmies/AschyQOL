@@ -68,7 +68,7 @@ public sealed class Configuration : IPluginConfiguration
     public bool OverlayDockLeftSide { get; set; } = false;
 
     /// <summary>If true, Bag Assistant uses a darker FFXIV-inspired UI palette.</summary>
-    public bool UseFfxivTheme { get; set; } = true;
+    public bool UseFfxivTheme { get; set; } = false;
 
     /// <summary>Index into <see cref="Rules"/> for the rule the overlay's rule button runs (-1 = none selected).</summary>
     public int OverlayRuleIndex { get; set; } = -1;
