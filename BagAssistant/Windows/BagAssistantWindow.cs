@@ -890,6 +890,14 @@ public sealed class BagAssistantWindow : Window, IDisposable
             Config.Save();
         }
 
+        var debugLog = Config.DebugLogCategorization;
+        if (ImGui.Checkbox("Debug: Log item categorization to plugin log", ref debugLog))
+        {
+            Config.DebugLogCategorization = debugLog;
+            Config.Save();
+        }
+        ImGui.TextDisabled("When enabled, each item scanned will log its detected category (Gear/Consumables/etc.) to help debug sorting issues.");
+
         ImGui.Separator();
         ImGui.TextUnformatted("Apply Zones Behavior");
 

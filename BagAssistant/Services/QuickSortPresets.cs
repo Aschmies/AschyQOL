@@ -1,4 +1,5 @@
 using FFXIVClientStructs.FFXIV.Client.Game;
+using Dalamud.Plugin.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,11 +26,54 @@ public sealed class QuickPreset
 
 public static class QuickSortPresets
 {
-    // ItemUICategory row IDs (Lumina). Common ones:
-    private const uint UICategoryMeal = 46;
-    private const uint UICategoryMedicine = 44;
-    private const uint UICategoryCrystal = 59;
-    private const uint UICategoryMateria = 58;
+    // Plugin logger and config (set via SetLogger)
+    private static IPluginLog? _logger = null;
+    private static Configuration? _config = null;
+    
+    public static void SetLogger(IPluginLog log) => _logger = log;
+    public static void SetConfig(Configuration config) => _config = config;
+    
+    private static void LogCategorization(string itemName, uint uiCategoryRowId, string result, string details = "")
+    {
+        // Only log if debug flag is enabled
+        if (_logger == null || _config == null || !_config.DebugLogCategorization) return;
+        var msg = $"[Categorize] '{itemName}' UICategory={uiCategoryRowId} → {result}";
+        if (!string.IsNullOrEmpty(details)) msg += $" ({details})";
+        _logger.Debug(msg);
+    }
+
+    // ItemUICategory row IDs (Lumina). Comprehensive consumable & item categories:
+    // CONSUMABLES:
+    private const uint UICategoryMedicine = 44;      // Potions, stat boosters, etc.
+    private const uint UICategoryMeal = 46;          // Food/dishes
+    private const uint UICategoryDrink = 43;         // Drinks (e.g., potions in liquid form)
+    private const uint UICategorySpirit = 45;        // Alcoholic beverages
+    private const uint UICategoryOther = 48;         // Other consumables (includes gardening items)
+    private const uint UICategoryEssence = 58;       // Often shared with Materia
+    
+    // CRAFTING:
+    private const uint UICategoryIngredient = 47;    // Ingredients/cooking materials
+    
+    // GATHERING:
+    private const uint UICategorySeafood = 47;       // Fish and seafood
+    private const uint UICategoryGardening = 48;     // Seeds and garden items
+    private const uint UICategoryRawMat1 = 38;       // Raw materials (minerals, wood, etc.)
+    private const uint UICategoryRawMat2 = 39;       // Raw materials continued
+    private const uint UICategoryRawMat3 = 40;       // Raw materials continued
+    
+    // MATERIALS:
+    private const uint UICategoryCrystal = 59;       // Crystals
+    private const uint UICategoryMateria = 58;       // Materia
+    
+    // Comprehensive consumable category check
+    private static bool IsConsumableCategory(uint uiCategoryRowId) => uiCategoryRowId switch
+    {
+        44 => true, // Medicine/Potions
+        45 => true, // Spirits/Alcohol  
+        46 => true, // Meals
+        43 => true, // Drinks (can vary by game version)
+        _ => false,
+    };
 
     // Reagents / Ingredients / Cooking ingredients live in many categories — easier to detect via flags below.
 
@@ -455,18 +499,71 @@ public static class QuickSortPresets
     /// painted in the Layout Zones tab: Gear / Materia / Consumables / Crafting / Gathering /
     /// Crystals / Junk / Misc. Junk takes precedence over its underlying category so that
     /// painted "Junk" zones receive the right items even when the item is also stackable.
+    /// 
+    /// Priority order:
+    /// 1. Junk (white-rarity, low vendor price)
+    /// 2. Gear (equippable items)
+    /// 3. Materia (UICategory 58)
+    /// 4. Crystals (UICategory 59)
+    /// 5. Consumables (UICategory 44, 45, 46, 43)
+    /// 6. Gathering (UICategory 47, 48, 38, 39, 40)
+    /// 7. Crafting (stackable items)
+    /// 8. Misc (everything else)
     /// </summary>
     public static string CategorizeForZone(InventoryItemInfo i, Configuration config)
     {
-        if (IsJunk(i, config)) return "Junk";
-        if (i.IsEquippable) return "Gear";
-        if (i.UICategoryRowId == UICategoryMateria) return "Materia";
-        if (i.UICategoryRowId == UICategoryCrystal) return "Crystals";
-        if (i.UICategoryRowId == UICategoryMeal || i.UICategoryRowId == UICategoryMedicine) return "Consumables";
-        // Gathering categories: seafood/fish (47), gardening/seeds (48), and a few raw mats.
-        if (i.UICategoryRowId == 47 || i.UICategoryRowId == 48 || i.UICategoryRowId == 38 || i.UICategoryRowId == 39 || i.UICategoryRowId == 40)
+        // Priority 1: Junk
+        if (IsJunk(i, config))
+        {
+            LogCategorization(i.Name, i.UICategoryRowId, "Junk", "Matches junk rules");
+            return "Junk";
+        }
+        
+        // Priority 2: Gear
+        if (i.IsEquippable)
+        {
+            LogCategorization(i.Name, i.UICategoryRowId, "Gear", "IsEquippable=true");
+            return "Gear";
+        }
+        
+        // Priority 3: Materia
+        if (i.UICategoryRowId == UICategoryMateria)
+        {
+            LogCategorization(i.Name, i.UICategoryRowId, "Materia", "UICategory=58");
+            return "Materia";
+        }
+        
+        // Priority 4: Crystals
+        if (i.UICategoryRowId == UICategoryCrystal)
+        {
+            LogCategorization(i.Name, i.UICategoryRowId, "Crystals", "UICategory=59");
+            return "Crystals";
+        }
+        
+        // Priority 5: Consumables (expanded check)
+        if (IsConsumableCategory(i.UICategoryRowId))
+        {
+            LogCategorization(i.Name, i.UICategoryRowId, "Consumables", $"UICategory={i.UICategoryRowId}");
+            return "Consumables";
+        }
+        
+        // Priority 6: Gathering (raw materials, fish, gardening)
+        if (i.UICategoryRowId == UICategorySeafood || i.UICategoryRowId == UICategoryGardening ||
+            i.UICategoryRowId == UICategoryRawMat1 || i.UICategoryRowId == UICategoryRawMat2 || i.UICategoryRowId == UICategoryRawMat3)
+        {
+            LogCategorization(i.Name, i.UICategoryRowId, "Gathering", $"UICategory={i.UICategoryRowId}");
             return "Gathering";
-        if (i.IsStackable) return "Crafting";
+        }
+        
+        // Priority 7: Crafting (stackable non-consumables)
+        if (i.IsStackable)
+        {
+            LogCategorization(i.Name, i.UICategoryRowId, "Crafting", "IsStackable=true");
+            return "Crafting";
+        }
+        
+        // Priority 8: Miscellaneous (default fallback)
+        LogCategorization(i.Name, i.UICategoryRowId, "Misc", "No specific category matched");
         return "Misc";
     }
 

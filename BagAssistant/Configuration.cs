@@ -92,6 +92,9 @@ public sealed class Configuration : IPluginConfiguration
         "Misc",
     ];
 
+    /// <summary>If true, log detailed categorization info to the plugin log for debugging.</summary>
+    public bool DebugLogCategorization { get; set; } = false;
+
     private IDalamudPluginInterface? pluginInterface;
     public void Initialize(IDalamudPluginInterface pi)
     {

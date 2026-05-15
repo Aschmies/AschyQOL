@@ -42,6 +42,10 @@ public sealed class BagAssistantPlugin : IDalamudPlugin
         InventoryService = new InventoryService(DataManager, Log);
         SortRunner = new SortRunner(InventoryService);
         SortQueue = new SortQueueService(InventoryService, Configuration);
+        
+        // Initialize logging for categorization debug output
+        QuickSortPresets.SetLogger(Log);
+        QuickSortPresets.SetConfig(Configuration);
 
         mainWindow = new BagAssistantWindow(this, DataManager);
         overlayWindow = new InventoryOverlayWindow(this, GameGui);
