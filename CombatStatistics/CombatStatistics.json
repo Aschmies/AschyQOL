@@ -1,10 +1,10 @@
 {
-  "Version": "1.0.5",
+  "Version": "1.0.6",
   "Author": "Aschy",
   "Name": "Combat Statistics",
   "Punchline": "Real-time DPS and HPS tracking with encounter history and an overlay.",
   "Description": "Tracks DPS, HPS, overheal, pet contribution, and encounter summaries with a compact overlay and detailed breakdowns.",
-  "Changelog": "v1.0.5: Fixed to only track party members (filtered out NPC damage), moved overlay default position to right-center, improved party member filtering logic.",
+  "Changelog": "v1.0.6: Fixed plugin icon embedding and display.",
   "InternalName": "CombatStatistics",
   "RepoUrl": "https://github.com/Aschmies/UndercutterFFXIV",
   "IconUrl": "",
