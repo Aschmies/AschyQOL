@@ -173,14 +173,14 @@
     "Description": "Tracks DPS, HPS, overheal, pet contribution, and encounter summaries with a compact overlay and detailed breakdowns.",
     "Changelog": "v1.0.1: Initial release with combat encounter tracking, DPS/HPS summaries, detailed actor breakdowns, and a compact overlay.",
     "InternalName": "CombatStatistics",
-    "AssemblyVersion": "1.0.3.0",
-    "TestingAssemblyVersion": "1.0.3.0",
+    "AssemblyVersion": "1.0.4.0",
+    "TestingAssemblyVersion": "1.0.4.0",
     "IsHide": false,
     "IsTestingExclusive": false,
     "RepoUrl": "https://github.com/Aschmies/UndercutterFFXIV",
-    "DownloadLinkInstall": "https://github.com/Aschmies/AschyQOL/releases/download/cs-v1.0.3/CombatStatistics-cs-v1.0.3.zip",
-    "DownloadLinkUpdate": "https://github.com/Aschmies/AschyQOL/releases/download/cs-v1.0.3/CombatStatistics-cs-v1.0.3.zip",
-    "DownloadLinkTesting": "https://github.com/Aschmies/AschyQOL/releases/download/cs-v1.0.3/CombatStatistics-cs-v1.0.3.zip",
+    "DownloadLinkInstall": "https://github.com/Aschmies/AschyQOL/releases/download/cs-v1.0.4/CombatStatistics-cs-v1.0.4.zip",
+    "DownloadLinkUpdate": "https://github.com/Aschmies/AschyQOL/releases/download/cs-v1.0.4/CombatStatistics-cs-v1.0.4.zip",
+    "DownloadLinkTesting": "https://github.com/Aschmies/AschyQOL/releases/download/cs-v1.0.4/CombatStatistics-cs-v1.0.4.zip",
     "DalamudApiLevel": 15,
     "ApplicableVersion": "any",
     "LoadRequiredState": 0,
@@ -196,7 +196,7 @@
       "hps",
       "overlay"
     ],
-    "LastUpdated": 1778844997,
+    "LastUpdated": 1778845946,
     "DownloadCount": 0
   }
 ]
