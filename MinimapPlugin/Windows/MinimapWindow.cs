@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Numerics;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
+using FFXIVClientStructs.FFXIV.Component.GUI;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
@@ -18,13 +19,15 @@ public sealed class MinimapWindow : Window, IDisposable
     private readonly MapDataService mapDataService;
     private readonly EntityService entityService;
     private readonly ICondition condition;
+    private readonly IGameGui gameGui;
 
     public MinimapWindow(
         Configuration config,
         MapDataService mapDataService,
         EntityService entityService,
         IClientState clientState,
-        ICondition condition)
+        ICondition condition,
+        IGameGui gameGui)
         : base("##MinimapOverlay",
             ImGuiWindowFlags.NoScrollbar |
             ImGuiWindowFlags.NoScrollWithMouse |
@@ -35,6 +38,7 @@ public sealed class MinimapWindow : Window, IDisposable
         this.mapDataService = mapDataService;
         this.entityService = entityService;
         this.condition = condition;
+        this.gameGui = gameGui;
 
         IsOpen = config.IsVisible;
         RespectCloseHotkey = false;
@@ -138,69 +142,99 @@ public sealed class MinimapWindow : Window, IDisposable
         int texH = textureWrap.Height;
         if (texW == 0 || texH == 0) return;
 
-        var playerPos      = localPlayer.Position;
-        float playerRot    = localPlayer.Rotation;
-        var playerMapPixel = CoordinateHelper.WorldToMapPixel(playerPos.X, playerPos.Z, mapInfo, texW, texH);
+        var playerPos   = localPlayer.Position;
+        float playerRot = localPlayer.Rotation;
 
-        // At zoom 1.0 show texW/4 px in each direction from the player.
-        float visibleHalf = (texW / 4.0f) / config.ZoomLevel;
+        // Check if the loaded file texture is a stub (game has no real overhead map for this zone).
+        // Dawntrail city zones (Tuliyollal, Solution Nine, etc.) only have 4×4 placeholder files.
+        bool fileIsStub = texW <= 16 && texH <= 16;
+
+        // Try to grab the texture from the game's own NaviMap addon when the file is a stub.
+        nint naviSrv = 0;
+        int  naviW   = 0;
+        int  naviH   = 0;
+        if (fileIsStub)
+            (naviSrv, naviW, naviH) = TryGetNaviMapBgTexture();
+        bool usingNaviMap = naviSrv != 0 && naviW > 16;
+
+        // For coordinate calculations use the expected full-res size when the file is a stub.
+        int calcW = fileIsStub ? 2048 : texW;
+        int calcH = fileIsStub ? 2048 : texH;
+
+        var playerMapPixel = CoordinateHelper.WorldToMapPixel(playerPos.X, playerPos.Z, mapInfo, calcW, calcH);
+
+        // At zoom 1.0 show calcW/4 px in each direction from the player.
+        float visibleHalf = (calcW / 4.0f) / config.ZoomLevel;
 
         // Clip all drawing to the minimap square
         drawList.PushClipRect(windowMin, windowMax, true);
 
-        // ── Draw map texture ────────────────────────────────────────────────
-        // Always use full-opacity white tint so the map pixels render at their natural colours.
-        // Opacity is conveyed by the background rect; this avoids transparent-texture edge cases.
         const uint mapTint = 0xFFFFFFFF;
 
-        // Pre-compute north-up UV range so we can show it in the debug overlay.
+        // Pre-compute north-up UV range (used for debug overlay and file-texture path).
         var uvMin = new Vector2(
-            (playerMapPixel.X - visibleHalf) / texW,
-            (playerMapPixel.Y - visibleHalf) / texH);
+            (playerMapPixel.X - visibleHalf) / calcW,
+            (playerMapPixel.Y - visibleHalf) / calcH);
         var uvMax = new Vector2(
-            (playerMapPixel.X + visibleHalf) / texW,
-            (playerMapPixel.Y + visibleHalf) / texH);
+            (playerMapPixel.X + visibleHalf) / calcW,
+            (playerMapPixel.Y + visibleHalf) / calcH);
 
-        if (config.RotateWithPlayer)
-            DrawRotatedMap(drawList, textureWrap.Handle, texW, texH, playerMapPixel, playerRot, center, winSize, visibleHalf, mapTint);
-        else
-            DrawNorthUpMap(drawList, textureWrap.Handle, windowMin, winSize, uvMin, uvMax, mapTint);
-
-        // ── Draw entity markers ─────────────────────────────────────────────
-        var markers = entityService.GetMarkers(config);
-        foreach (var marker in markers)
+        // ── Draw map texture ────────────────────────────────────────────────
+        if (usingNaviMap)
         {
-            var markerPixel = CoordinateHelper.WorldToMapPixel(marker.WorldX, marker.WorldZ, mapInfo, texW, texH);
-            Vector2 screenPos;
-
+            // NaviMap render target is always player-centred.  Map zoom is applied as a UV crop.
+            float uvHalf   = 0.5f / config.ZoomLevel;
+            var naviUvMin  = new Vector2(0.5f - uvHalf, 0.5f - uvHalf);
+            var naviUvMax  = new Vector2(0.5f + uvHalf, 0.5f + uvHalf);
+            drawList.AddImage(new ImTextureID(naviSrv), windowMin, windowMin + new Vector2(winSize, winSize),
+                              naviUvMin, naviUvMax, mapTint);
+        }
+        else if (!fileIsStub)
+        {
             if (config.RotateWithPlayer)
-                screenPos = CoordinateHelper.MapPixelToScreenRotated(markerPixel, playerMapPixel, center, visibleHalf, winSize * 0.5f, playerRot);
+                DrawRotatedMap(drawList, textureWrap.Handle, texW, texH, playerMapPixel, playerRot, center, winSize, visibleHalf, mapTint);
             else
-                screenPos = CoordinateHelper.MapPixelToScreen(markerPixel, playerMapPixel, center, visibleHalf, winSize * 0.5f);
+                DrawNorthUpMap(drawList, textureWrap.Handle, windowMin, winSize, uvMin, uvMax, mapTint);
+        }
+        // else: stub and no NaviMap fallback → leave black background
 
-            DrawMarker(drawList, screenPos, marker.Type);
-            // Aetheryte click-to-teleport
-            if (marker.AetheryteId != 0)
+        // ── Draw entity markers (only when we have real coordinate context) ─
+        if (!usingNaviMap && !fileIsStub)
+        {
+            var markers = entityService.GetMarkers(config);
+            foreach (var marker in markers)
             {
-                const float hit = 8f;
-                var hitMin = screenPos - new Vector2(hit, hit);
-                var hitMax = screenPos + new Vector2(hit, hit);
-                if (ImGui.IsMouseHoveringRect(hitMin, hitMax))
+                var markerPixel = CoordinateHelper.WorldToMapPixel(marker.WorldX, marker.WorldZ, mapInfo, calcW, calcH);
+                Vector2 screenPos;
+
+                if (config.RotateWithPlayer)
+                    screenPos = CoordinateHelper.MapPixelToScreenRotated(markerPixel, playerMapPixel, center, visibleHalf, winSize * 0.5f, playerRot);
+                else
+                    screenPos = CoordinateHelper.MapPixelToScreen(markerPixel, playerMapPixel, center, visibleHalf, winSize * 0.5f);
+
+                DrawMarker(drawList, screenPos, marker.Type);
+                if (marker.AetheryteId != 0)
                 {
-                    ImGui.SetTooltip($"Teleport: {marker.Label}");
-                    if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+                    const float hit = 8f;
+                    var hitMin = screenPos - new Vector2(hit, hit);
+                    var hitMax = screenPos + new Vector2(hit, hit);
+                    if (ImGui.IsMouseHoveringRect(hitMin, hitMax))
                     {
-                        var entry = Plugin.AetheryteList.FirstOrDefault(a => a.AetheryteId == marker.AetheryteId);
-                        if (entry != null)
+                        ImGui.SetTooltip($"Teleport: {marker.Label}");
+                        if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
                         {
-                            unsafe { Telepo.Instance()->Teleport(entry.AetheryteId, entry.SubIndex); }
+                            var entry = Plugin.AetheryteList.FirstOrDefault(a => a.AetheryteId == marker.AetheryteId);
+                            if (entry != null)
+                            {
+                                unsafe { Telepo.Instance()->Teleport(entry.AetheryteId, entry.SubIndex); }
+                            }
                         }
                     }
                 }
-            }        }
+            }
+        }
 
         // ── Draw player arrow (always centred) ──────────────────────────────
-        // In player-up mode the arrow always points up; in north-up it rotates.
         float arrowRot = config.RotateWithPlayer ? 0f : playerRot;
         DrawPlayerArrow(drawList, center, arrowRot);
 
@@ -209,13 +243,16 @@ public sealed class MinimapWindow : Window, IDisposable
         // Border
         drawList.AddRect(windowMin, windowMax, 0xAA000000, 0f, ImDrawFlags.None, 1.5f);
 
-        // Debug overlay — bottom of the minimap
+        // Debug overlay
         float dbgY = winSize - 52;
         float dbgX = 4;
         ImGui.SetCursorScreenPos(windowMin + new Vector2(dbgX, dbgY));
         ImGui.TextDisabled($"{mapInfo.MapId} #{mapInfo.MapRowId}");
         ImGui.SetCursorScreenPos(windowMin + new Vector2(dbgX, dbgY + 12));
-        ImGui.TextDisabled($"tex {texW}x{texH}  {System.IO.Path.GetFileName(mapInfo.TexturePath)}");
+        if (usingNaviMap)
+            ImGui.TextDisabled($"NaviMap {naviW}x{naviH}");
+        else
+            ImGui.TextDisabled($"tex {texW}x{texH}  {System.IO.Path.GetFileName(mapInfo.TexturePath)}");
         ImGui.SetCursorScreenPos(windowMin + new Vector2(dbgX, dbgY + 24));
         ImGui.TextDisabled($"sf={mapInfo.SizeFactor} uv({uvMin.X:F2},{uvMin.Y:F2})-({uvMax.X:F2},{uvMax.Y:F2})");
         ImGui.SetCursorScreenPos(windowMin + new Vector2(dbgX, dbgY + 36));
@@ -225,6 +262,55 @@ public sealed class MinimapWindow : Window, IDisposable
     // ────────────────────────────────────────────────────────────────────────
     // Private helpers
     // ────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Walk the NaviMap addon's node tree to find its largest background image texture.
+    /// For zones that have no pre-baked overhead map file (Dawntrail city zones), the game
+    /// renders the minimap dynamically and the result lives inside the NaviMap addon tree.
+    /// Returns (SRV pointer, width, height) — all zero if not available.
+    /// </summary>
+    private unsafe (nint Srv, int W, int H) TryGetNaviMapBgTexture()
+    {
+        var addonPtr = gameGui.GetAddonByName("NaviMap");
+        if (addonPtr.IsNull || !addonPtr.IsVisible) return default;
+
+        var addon = (AtkUnitBase*)(nint)addonPtr;
+        if (addon->UldManager.NodeListCount == 0) return default;
+
+        nint bestSrv = nint.Zero;
+        int  bestW   = 0;
+        int  bestH   = 0;
+
+        for (var i = 0u; i < addon->UldManager.NodeListCount; i++)
+        {
+            var node = addon->UldManager.NodeList[i];
+            if (node == null || node->Type != NodeType.Image) continue;
+
+            var imgNode = (AtkImageNode*)node;
+            if (imgNode->PartsList == null || imgNode->PartsList->PartCount == 0) continue;
+
+            var partId   = (ushort)Math.Min(imgNode->PartId, (ushort)(imgNode->PartsList->PartCount - 1));
+            var uldAsset = imgNode->PartsList->Parts[partId].UldAsset;
+            if (uldAsset == null) continue;
+
+            // GetKernelTexture is a MemberFunction — call via pointer to the field
+            var atkTexPtr = &uldAsset->AtkTexture;
+            var kt = atkTexPtr->GetKernelTexture();
+            if (kt == null) continue;
+
+            var srv = (nint)kt->D3D11ShaderResourceView;
+            if (srv == nint.Zero) continue;
+
+            if ((int)kt->ActualWidth > bestW)
+            {
+                bestW   = (int)kt->ActualWidth;
+                bestH   = (int)kt->ActualHeight;
+                bestSrv = srv;
+            }
+        }
+
+        return (bestSrv, bestW, bestH);
+    }
 
     private static void DrawNorthUpMap(
         ImDrawListPtr drawList,

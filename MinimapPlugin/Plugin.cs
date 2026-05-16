@@ -22,6 +22,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static IPartyList PartyList { get; private set; } = null!;
     [PluginService] internal static IAetheryteList AetheryteList { get; private set; } = null!;
+    [PluginService] internal static IGameGui GameGui { get; private set; } = null!;
 
     private const string CommandName   = "/minimap";
     private const string CommandConfig = "/minimapconfig";
@@ -42,7 +43,7 @@ public sealed class Plugin : IDalamudPlugin
         mapDataService = new MapDataService(DataManager, TextureProvider, Log);
         entityService  = new EntityService(ObjectTable, PartyList, ClientState, Log);
         configWindow   = new ConfigWindow(Configuration);
-        minimapWindow  = new MinimapWindow(Configuration, mapDataService, entityService, ClientState, Condition);
+        minimapWindow  = new MinimapWindow(Configuration, mapDataService, entityService, ClientState, Condition, GameGui);
 
         windowSystem.AddWindow(minimapWindow);
         windowSystem.AddWindow(configWindow);
