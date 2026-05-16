@@ -207,15 +207,15 @@
     "Description": "Displays a resizable, zoomable minimap overlay using the current zone's game map texture. Shows player position, party members, aetherytes, FATEs, and more. Supports north-up and player-up rotation modes.",
     "Changelog": "v1.0.0: Initial release.",
     "InternalName": "MinimapPlugin",
-    "AssemblyVersion": "1.1.4.0",
-    "TestingAssemblyVersion": "1.1.4.0",
+    "AssemblyVersion": "1.1.5.0",
+    "TestingAssemblyVersion": "1.1.5.0",
     "IsHide": false,
     "IsTestingExclusive": false,
     "RepoUrl": "https://github.com/Aschmies/AschyQOL",
     "IconUrl": "https://raw.githubusercontent.com/Aschmies/AschyQOL/main/assets/icon-market-master-pro.png",
-    "DownloadLinkInstall": "https://github.com/Aschmies/AschyQOL/releases/download/mm-v1.1.4/MinimapPlugin-mm-v1.1.4.zip",
-    "DownloadLinkUpdate": "https://github.com/Aschmies/AschyQOL/releases/download/mm-v1.1.4/MinimapPlugin-mm-v1.1.4.zip",
-    "DownloadLinkTesting": "https://github.com/Aschmies/AschyQOL/releases/download/mm-v1.1.4/MinimapPlugin-mm-v1.1.4.zip",
+    "DownloadLinkInstall": "https://github.com/Aschmies/AschyQOL/releases/download/mm-v1.1.5/MinimapPlugin-mm-v1.1.5.zip",
+    "DownloadLinkUpdate": "https://github.com/Aschmies/AschyQOL/releases/download/mm-v1.1.5/MinimapPlugin-mm-v1.1.5.zip",
+    "DownloadLinkTesting": "https://github.com/Aschmies/AschyQOL/releases/download/mm-v1.1.5/MinimapPlugin-mm-v1.1.5.zip",
     "DalamudApiLevel": 15,
     "ApplicableVersion": "any",
     "LoadRequiredState": 0,
@@ -230,7 +230,7 @@
       "map",
       "navigation"
     ],
-    "LastUpdated": 1778921236,
+    "LastUpdated": 1778923750,
     "DownloadCount": 0
   }
 ]
