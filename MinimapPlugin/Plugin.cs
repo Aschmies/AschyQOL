@@ -60,17 +60,17 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenConfigUi += OpenConfigUi;
         PluginInterface.UiBuilder.OpenMainUi   += ToggleMainUi;
 
-        ClientState.TerritoryChanged += OnTerritoryChanged;
+        ClientState.MapIdChanged += OnMapIdChanged;
 
-        // Prime the map for the current zone
-        if (ClientState.TerritoryType != 0)
-            mapDataService.LoadMapForTerritory(ClientState.TerritoryType);
+        // Prime the map for the current zone using MapId directly (updated every frame by Dalamud from AgentMap)
+        if (ClientState.MapId != 0)
+            mapDataService.LoadMapForMapId(ClientState.MapId);
     }
 
     // ── Event handlers ────────────────────────────────────────────────────────
 
-    private void OnTerritoryChanged(uint territoryId)
-        => mapDataService.LoadMapForTerritory(territoryId);
+    private void OnMapIdChanged(uint mapId)
+        => mapDataService.LoadMapForMapId(mapId);
 
     private void OnCommand(string command, string args)
     {
@@ -116,7 +116,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
-        ClientState.TerritoryChanged -= OnTerritoryChanged;
+        ClientState.MapIdChanged -= OnMapIdChanged;
 
         PluginInterface.UiBuilder.Draw        -= DrawUI;
         PluginInterface.UiBuilder.OpenConfigUi -= OpenConfigUi;

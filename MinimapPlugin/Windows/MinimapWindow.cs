@@ -149,11 +149,22 @@ public sealed class MinimapWindow : Window, IDisposable
         drawList.PushClipRect(windowMin, windowMax, true);
 
         // ── Draw map texture ────────────────────────────────────────────────
-        uint mapTint = ImGui.ColorConvertFloat4ToU32(new Vector4(1f, 1f, 1f, config.Opacity));
+        // Always use full-opacity white tint so the map pixels render at their natural colours.
+        // Opacity is conveyed by the background rect; this avoids transparent-texture edge cases.
+        const uint mapTint = 0xFFFFFFFF;
+
+        // Pre-compute north-up UV range so we can show it in the debug overlay.
+        var uvMin = new Vector2(
+            (playerMapPixel.X - visibleHalf) / texW,
+            (playerMapPixel.Y - visibleHalf) / texH);
+        var uvMax = new Vector2(
+            (playerMapPixel.X + visibleHalf) / texW,
+            (playerMapPixel.Y + visibleHalf) / texH);
+
         if (config.RotateWithPlayer)
             DrawRotatedMap(drawList, textureWrap.Handle, texW, texH, playerMapPixel, playerRot, center, winSize, visibleHalf, mapTint);
         else
-            DrawNorthUpMap(drawList, textureWrap.Handle, texW, texH, playerMapPixel, windowMin, winSize, visibleHalf, mapTint);
+            DrawNorthUpMap(drawList, textureWrap.Handle, windowMin, winSize, uvMin, uvMax, mapTint);
 
         // ── Draw entity markers ─────────────────────────────────────────────
         var markers = entityService.GetMarkers(config);
@@ -198,9 +209,17 @@ public sealed class MinimapWindow : Window, IDisposable
         // Border
         drawList.AddRect(windowMin, windowMax, 0xAA000000, 0f, ImDrawFlags.None, 1.5f);
 
-        // Debug: show map ID in bottom-left so we can confirm Lumina lookup
-        ImGui.SetCursorScreenPos(windowMin + new Vector2(4, winSize - 16));
-        ImGui.TextDisabled(mapInfo.MapId);
+        // Debug overlay — bottom of the minimap
+        float dbgY = winSize - 52;
+        float dbgX = 4;
+        ImGui.SetCursorScreenPos(windowMin + new Vector2(dbgX, dbgY));
+        ImGui.TextDisabled($"{mapInfo.MapId} #{mapInfo.MapRowId}");
+        ImGui.SetCursorScreenPos(windowMin + new Vector2(dbgX, dbgY + 12));
+        ImGui.TextDisabled($"tex {texW}x{texH}  sf={mapInfo.SizeFactor}");
+        ImGui.SetCursorScreenPos(windowMin + new Vector2(dbgX, dbgY + 24));
+        ImGui.TextDisabled($"uv({uvMin.X:F2},{uvMin.Y:F2})-({uvMax.X:F2},{uvMax.Y:F2})");
+        ImGui.SetCursorScreenPos(windowMin + new Vector2(dbgX, dbgY + 36));
+        ImGui.TextDisabled($"w({playerPos.X:F0},{playerPos.Z:F0}) ox={mapInfo.OffsetX} oy={mapInfo.OffsetY}");
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -210,20 +229,12 @@ public sealed class MinimapWindow : Window, IDisposable
     private static void DrawNorthUpMap(
         ImDrawListPtr drawList,
         ImTextureID texId,
-        int texW, int texH,
-        Vector2 playerMapPixel,
         Vector2 windowMin,
         float winSize,
-        float visibleHalf,
+        Vector2 uvMin,
+        Vector2 uvMax,
         uint tint)
     {
-        var uvMin = new Vector2(
-            (playerMapPixel.X - visibleHalf) / texW,
-            (playerMapPixel.Y - visibleHalf) / texH);
-        var uvMax = new Vector2(
-            (playerMapPixel.X + visibleHalf) / texW,
-            (playerMapPixel.Y + visibleHalf) / texH);
-
         drawList.AddImage(texId, windowMin, windowMin + new Vector2(winSize, winSize), uvMin, uvMax, tint);
     }
 

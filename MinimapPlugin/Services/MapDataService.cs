@@ -14,6 +14,7 @@ public sealed class MapDataService : IDisposable
     private readonly IPluginLog log;
 
     private ISharedImmediateTexture? currentTexture;
+    private bool texDimensionsLogged;
 
     public bool IsLoading { get; private set; }
     public ZoneMapInfo? CurrentMapInfo { get; private set; }
@@ -25,68 +26,94 @@ public sealed class MapDataService : IDisposable
         this.log = log;
     }
 
-    public void LoadMapForTerritory(uint territoryId)
+    /// <summary>Load map texture using a Lumina Map row ID (from IClientState.MapId).</summary>
+    public void LoadMapForMapId(uint mapRowId)
     {
-        if (territoryId == 0) return;
+        if (mapRowId == 0) return;
 
         IsLoading = true;
-
-        // Clear previous state immediately so the window shows "loading"
         currentTexture = null;
         CurrentMapInfo = null;
+        texDimensionsLogged = false;
 
         Task.Run(() =>
         {
             try
             {
-                var territorySheet = dataManager.GetExcelSheet<TerritoryType>();
-                if (territorySheet == null)
+                var mapSheet = dataManager.GetExcelSheet<Map>();
+                if (mapSheet == null)
                 {
-                    log.Warning("[Minimap] TerritoryType sheet not available.");
+                    log.Warning("[Minimap] Map sheet not available.");
                     return;
                 }
 
-                var territory = territorySheet.GetRowOrDefault(territoryId);
-                if (territory == null)
+                var mapRow = mapSheet.GetRowOrDefault(mapRowId);
+                if (mapRow == null)
                 {
-                    log.Warning($"[Minimap] No TerritoryType row for id {territoryId}.");
+                    log.Warning($"[Minimap] No Map row for id {mapRowId}.");
                     return;
                 }
 
-                var map = territory.Value.Map.Value;
+                var map = mapRow.Value;
                 var mapId = map.Id.ExtractText().TrimEnd('\0');
+                var sizeFactor = map.SizeFactor == 0 ? (ushort)100 : map.SizeFactor;
+                var offsetX = map.OffsetX;
+                var offsetY = map.OffsetY;
 
                 if (string.IsNullOrEmpty(mapId))
                 {
-                    log.Warning($"[Minimap] Empty map ID for territory {territoryId}.");
+                    log.Warning($"[Minimap] Empty map ID for map row {mapRowId}.");
                     return;
                 }
 
-                var texPath = $"ui/map/{mapId}_m.tex";
+                // Try _m.tex → _s.tex → parent zone _m.tex
+                string texPath = $"ui/map/{mapId}_m.tex";
+                if (!dataManager.FileExists(texPath))
+                {
+                    var smPath = $"ui/map/{mapId}_s.tex";
+                    if (dataManager.FileExists(smPath))
+                    {
+                        texPath = smPath;
+                    }
+                    else if (mapId.Contains('/'))
+                    {
+                        // Sub-area with numeric ID (e.g. "x6e2/00") — try the parent zone texture
+                        var folder = mapId.Split('/')[0];
+                        var parentPath = $"ui/map/{folder}/{folder}_m.tex";
+                        if (dataManager.FileExists(parentPath))
+                        {
+                            texPath = parentPath;
+                            log.Info($"[Minimap] Sub-area '{mapId}' has no standalone tex; falling back to parent '{folder}/{folder}_m.tex'");
+                        }
+                        else
+                        {
+                            log.Warning($"[Minimap] No _m/_s tex found for '{mapId}', path '{texPath}' will be attempted anyway.");
+                        }
+                    }
+                    else
+                    {
+                        log.Warning($"[Minimap] '{texPath}' not found in game files; will attempt anyway.");
+                    }
+                }
 
-                log.Debug($"[Minimap] Territory {territoryId} → mapId='{mapId}' texPath='{texPath}'");
+                log.Info($"[Minimap] row={mapRowId} id='{mapId}' sf={sizeFactor} ox={offsetX} oy={offsetY} path='{texPath}'");
 
                 var info = new ZoneMapInfo
                 {
-                    TerritoryId = territoryId,
+                    MapRowId = mapRowId,
                     MapId = mapId,
                     TexturePath = texPath,
-                    SizeFactor = map.SizeFactor,
-                    OffsetX = map.OffsetX,
-                    OffsetY = map.OffsetY,
+                    SizeFactor = sizeFactor,
+                    OffsetX = offsetX,
+                    OffsetY = offsetY,
                 };
 
-                var texture = textureProvider.GetFromGame(texPath);
-
                 CurrentMapInfo = info;
-                currentTexture = texture;
-
-                // Verify the texture loads (logged on next draw, but warn early if something looks off)
-                log.Debug($"[Minimap] ISharedImmediateTexture acquired for {texPath}.");
+                currentTexture = textureProvider.GetFromGame(texPath);
             }
             catch (Exception ex)
             {
-                log.Error(ex, $"[Minimap] Failed to load map for territory {territoryId}.");
+                log.Error(ex, $"[Minimap] Failed to load map for map row {mapRowId}.");
             }
             finally
             {
@@ -95,19 +122,24 @@ public sealed class MapDataService : IDisposable
         });
     }
 
-    /// <summary>Returns the current texture wrap for use within an ImGui Draw frame, or null if unavailable.</summary>
     /// <summary>Returns the current texture wrap for use within an ImGui Draw frame.
-    /// Returns null while the texture is still loading (wrap size is 1x1 placeholder).</summary>
+    /// Returns null while the texture is still loading (wrap size is 1×1 placeholder).</summary>
     public Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap? GetCurrentTextureWrap()
     {
         var wrap = currentTexture?.GetWrapOrEmpty();
         if (wrap == null || wrap.Width <= 1) return null;
+
+        if (!texDimensionsLogged)
+        {
+            texDimensionsLogged = true;
+            log.Info($"[Minimap] Texture loaded: {wrap.Width}×{wrap.Height} for '{CurrentMapInfo?.TexturePath}'");
+        }
+
         return wrap;
     }
 
     public void Dispose()
     {
-        // ISharedImmediateTexture is not IDisposable — the texture is managed by Dalamud's cache.
         currentTexture = null;
     }
 }

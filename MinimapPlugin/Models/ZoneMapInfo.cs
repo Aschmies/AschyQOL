@@ -2,7 +2,7 @@ namespace MinimapPlugin.Models;
 
 public sealed class ZoneMapInfo
 {
-    public uint TerritoryId { get; set; }
+    public uint MapRowId { get; set; }
     public string MapId { get; set; } = string.Empty;
     public string TexturePath { get; set; } = string.Empty;
 
