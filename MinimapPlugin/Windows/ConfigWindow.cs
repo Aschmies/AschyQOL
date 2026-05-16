@@ -46,7 +46,7 @@ public sealed class ConfigWindow : Window
         }
 
         var opacity = config.Opacity;
-        if (ImGui.SliderFloat("Background Opacity##opacity", ref opacity, 0f, 1f))
+        if (ImGui.SliderFloat("Opacity##opacity", ref opacity, 0f, 1f))
         {
             config.Opacity = opacity;
             config.Save();

@@ -101,8 +101,8 @@ public sealed class MinimapWindow : Window, IDisposable
         var center     = windowMin + new Vector2(winSize * 0.5f, winSize * 0.5f);
         var drawList   = ImGui.GetWindowDrawList();
 
-        // Draw a semi-transparent background
-        uint bgColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0f, 0f, 0f, config.Opacity * 0.5f));
+        // Draw a background — fully opaque black at opacity 1, invisible at 0
+        uint bgColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0f, 0f, 0f, config.Opacity));
         drawList.AddRectFilled(windowMin, windowMax, bgColor);
 
         if (mapDataService.IsLoading)
@@ -147,10 +147,11 @@ public sealed class MinimapWindow : Window, IDisposable
         drawList.PushClipRect(windowMin, windowMax, true);
 
         // ── Draw map texture ────────────────────────────────────────────────
+        uint mapTint = ImGui.ColorConvertFloat4ToU32(new Vector4(1f, 1f, 1f, config.Opacity));
         if (config.RotateWithPlayer)
-            DrawRotatedMap(drawList, textureWrap.Handle, texW, texH, playerMapPixel, playerRot, center, winSize, visibleHalf);
+            DrawRotatedMap(drawList, textureWrap.Handle, texW, texH, playerMapPixel, playerRot, center, winSize, visibleHalf, mapTint);
         else
-            DrawNorthUpMap(drawList, textureWrap.Handle, texW, texH, playerMapPixel, windowMin, winSize, visibleHalf);
+            DrawNorthUpMap(drawList, textureWrap.Handle, texW, texH, playerMapPixel, windowMin, winSize, visibleHalf, mapTint);
 
         // ── Draw entity markers ─────────────────────────────────────────────
         var markers = entityService.GetMarkers(config);
@@ -193,7 +194,8 @@ public sealed class MinimapWindow : Window, IDisposable
         Vector2 playerMapPixel,
         Vector2 windowMin,
         float winSize,
-        float visibleHalf)
+        float visibleHalf,
+        uint tint)
     {
         var uvMin = new Vector2(
             (playerMapPixel.X - visibleHalf) / texW,
@@ -202,7 +204,7 @@ public sealed class MinimapWindow : Window, IDisposable
             (playerMapPixel.X + visibleHalf) / texW,
             (playerMapPixel.Y + visibleHalf) / texH);
 
-        drawList.AddImage(texId, windowMin, windowMin + new Vector2(winSize, winSize), uvMin, uvMax);
+        drawList.AddImage(texId, windowMin, windowMin + new Vector2(winSize, winSize), uvMin, uvMax, tint);
     }
 
     private static void DrawRotatedMap(
@@ -213,7 +215,8 @@ public sealed class MinimapWindow : Window, IDisposable
         float rotation,
         Vector2 center,
         float winSize,
-        float visibleHalf)
+        float visibleHalf,
+        uint tint)
     {
         float halfWin = winSize * 0.5f;
         float uvHalfX = visibleHalf / texW;
@@ -246,7 +249,7 @@ public sealed class MinimapWindow : Window, IDisposable
         var p2 = center + new Vector2( halfWin,  halfWin);
         var p3 = center + new Vector2(-halfWin,  halfWin);
 
-        drawList.AddImageQuad(texId, p0, p1, p2, p3, uvs[0], uvs[1], uvs[2], uvs[3]);
+        drawList.AddImageQuad(texId, p0, p1, p2, p3, uvs[0], uvs[1], uvs[2], uvs[3], tint);
     }
 
     private static void DrawMarker(ImDrawListPtr drawList, Vector2 pos, MarkerType type)
